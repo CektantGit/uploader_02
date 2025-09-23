@@ -1,3 +1,4 @@
+import { DRACOLoader } from 'DRACOLoader';
 import { FBXLoader } from 'FBXLoader';
 import { GLTFLoader } from 'GLTFLoader';
 import { OBJLoader } from 'OBJLoader';
@@ -17,6 +18,8 @@ export class ImportManager {
     this.selectionManager = selectionManager;
     this.panel = panel;
     this.gltfLoader = new GLTFLoader();
+    /** @type {import('three/examples/jsm/loaders/DRACOLoader.js').DRACOLoader | null} */
+    this.dracoLoader = null;
     this.fbxLoader = new FBXLoader();
     this.objLoader = new OBJLoader();
   }
@@ -63,15 +66,67 @@ export class ImportManager {
    * @param {ArrayBuffer} buffer
    * @returns {Promise<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF>}
    */
-  #parseGLTF(buffer) {
+  #parseGLTF(buffer, extension) {
     return new Promise((resolve, reject) => {
-      this.gltfLoader.parse(
+      const loader = this.gltfLoader;
+      if (this.#bufferUsesDraco(buffer, extension)) {
+        loader.setDRACOLoader(this.#getDracoLoader());
+      }
+      loader.parse(
         buffer,
         '',
         (gltf) => resolve(gltf),
         (error) => reject(error),
       );
     });
+  }
+
+  /**
+   * Лениво создаёт и настраивает DRACOLoader для распаковки сжатых мешей.
+   * @returns {import('three/examples/jsm/loaders/DRACOLoader.js').DRACOLoader}
+   */
+  #getDracoLoader() {
+    if (!this.dracoLoader) {
+      this.dracoLoader = new DRACOLoader();
+      this.dracoLoader.setDecoderPath(
+        'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/',
+      );
+    }
+    return this.dracoLoader;
+  }
+
+  /**
+   * Проверяет, содержит ли GLTF/GLB описание расширения KHR_draco_mesh_compression.
+   * @param {ArrayBuffer} buffer
+   * @param {'gltf' | 'glb'} extension
+   * @returns {boolean}
+   */
+  #bufferUsesDraco(buffer, extension) {
+    try {
+      if (extension === 'gltf') {
+        const text = new TextDecoder('utf-8').decode(buffer);
+        return text.includes('KHR_draco_mesh_compression');
+      }
+
+      const MAGIC = 0x46546c67; // glTF
+      const JSON_TYPE = 0x4e4f534a; // JSON
+      const view = new DataView(buffer);
+      const magic = view.getUint32(0, true);
+      if (magic !== MAGIC) {
+        return false;
+      }
+      const jsonByteLength = view.getUint32(12, true);
+      const chunkType = view.getUint32(16, true);
+      if (chunkType !== JSON_TYPE) {
+        return false;
+      }
+      const jsonBytes = new Uint8Array(buffer, 20, jsonByteLength);
+      const jsonText = new TextDecoder('utf-8').decode(jsonBytes);
+      return jsonText.includes('KHR_draco_mesh_compression');
+    } catch (error) {
+      // Не получилось определить расширения — считаем, что сжатие не используется.
+      return false;
+    }
   }
 
   /**
@@ -103,7 +158,7 @@ export class ImportManager {
     switch (extension) {
       case 'gltf':
       case 'glb': {
-        const gltf = await this.#parseGLTF(buffer);
+        const gltf = await this.#parseGLTF(buffer, extension);
         return gltf.scene;
       }
       case 'fbx':
