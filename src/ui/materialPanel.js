@@ -57,6 +57,8 @@ function getNeutralNormalTexture() {
     neutralNormalTexture.magFilter = LinearFilter;
     neutralNormalTexture.wrapS = RepeatWrapping;
     neutralNormalTexture.wrapT = RepeatWrapping;
+    neutralNormalTexture.userData = neutralNormalTexture.userData ?? {};
+    neutralNormalTexture.userData.__isUploaded = false;
   }
   return neutralNormalTexture;
 }
@@ -160,12 +162,22 @@ export class MaterialPanel {
     this.savedColorTexture = null;
     /** @type {string} */
     this.savedColorPreview = WHITE_PREVIEW;
+    /** @type {boolean} */
+    this.savedColorIsUpload = false;
+    /** @type {string} */
+    this.savedColorHex = '#ffffff';
 
     if (this.textureImage) {
       this.textureImage.src = WHITE_PREVIEW;
     }
+    if (this.textureTarget) {
+      this.textureTarget.classList.remove('texture-upload--no-preview');
+    }
     if (this.normalTextureImage) {
       this.normalTextureImage.src = NEUTRAL_NORMAL_PREVIEW;
+    }
+    if (this.normalTextureTarget) {
+      this.normalTextureTarget.classList.remove('texture-upload--no-preview');
     }
 
     this.#bindEvents();
@@ -196,11 +208,25 @@ export class MaterialPanel {
     this.activeMaterial = material;
     this.savedColorTexture = material.map ?? null;
     this.savedColorPreview = getTexturePreview(material.map) ?? WHITE_PREVIEW;
+    this.savedColorIsUpload = material.map ? Boolean(material.map.userData?.__isUploaded) : false;
     this.colorMode = material.map ? 'texture' : 'color';
     this.#syncModeInputs();
 
+    const baseColorBackup =
+      typeof material.userData?.__baseColorBackup === 'string'
+        ? material.userData.__baseColorBackup
+        : null;
+    if (baseColorBackup) {
+      this.savedColorHex = baseColorBackup.startsWith('#') ? baseColorBackup : `#${baseColorBackup}`;
+    } else {
+      this.savedColorHex = `#${material.color.getHexString()}`;
+    }
     if (this.colorInput) {
-      this.colorInput.value = `#${material.color.getHexString()}`;
+      this.colorInput.value = this.savedColorHex;
+    }
+
+    if (this.colorMode === 'texture') {
+      this.#ensureTextureColorNeutral();
     }
 
     if (!material.normalScale) {
@@ -340,17 +366,29 @@ export class MaterialPanel {
       return;
     }
     if (mode === 'color') {
-      if (this.activeMaterial.map) {
-        this.savedColorTexture = this.activeMaterial.map;
-        this.savedColorPreview = getTexturePreview(this.activeMaterial.map) ?? WHITE_PREVIEW;
+      const map = this.activeMaterial.map ?? null;
+      if (map) {
+        this.savedColorTexture = map;
+        this.savedColorPreview = getTexturePreview(map) ?? WHITE_PREVIEW;
+        this.savedColorIsUpload = Boolean(map.userData?.__isUploaded);
       }
-      this.activeMaterial.map = null;
-      this.activeMaterial.needsUpdate = true;
-    } else if (mode === 'texture') {
+      if (this.activeMaterial.map) {
+        this.activeMaterial.map = null;
+        this.activeMaterial.needsUpdate = true;
+      }
+      this.#restoreSavedColor();
+    } else {
       if (!this.activeMaterial.map && this.savedColorTexture) {
         this.activeMaterial.map = this.savedColorTexture;
         this.activeMaterial.needsUpdate = true;
       }
+      const activeMap = this.activeMaterial.map ?? null;
+      if (activeMap) {
+        this.savedColorTexture = activeMap;
+        this.savedColorPreview = getTexturePreview(activeMap) ?? WHITE_PREVIEW;
+        this.savedColorIsUpload = Boolean(activeMap.userData?.__isUploaded);
+      }
+      this.#ensureTextureColorNeutral();
     }
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
@@ -382,6 +420,56 @@ export class MaterialPanel {
   }
 
   /**
+   * Запоминает текущий цвет и делает материал нейтральным для текстуры.
+   */
+  #ensureTextureColorNeutral() {
+    if (!this.activeMaterial || !this.activeMaterial.color) {
+      return;
+    }
+    const currentHex = this.activeMaterial.color.getHexString();
+    const storedHex = this.colorInput?.value && /^#?[0-9a-fA-F]{6}$/.test(this.colorInput.value)
+      ? this.colorInput.value
+      : `#${currentHex}`;
+    this.savedColorHex = storedHex.startsWith('#') ? storedHex : `#${storedHex}`;
+    if (this.activeMaterial) {
+      this.activeMaterial.userData = this.activeMaterial.userData ?? {};
+      this.activeMaterial.userData.__baseColorBackup = this.savedColorHex;
+    }
+    if (currentHex.toLowerCase() !== 'ffffff') {
+      this.activeMaterial.color.set('#ffffff');
+      this.activeMaterial.needsUpdate = true;
+    }
+    if (this.colorInput) {
+      this.colorInput.value = this.savedColorHex;
+    }
+  }
+
+  /**
+   * Восстанавливает сохраненный цвет материала.
+   */
+  #restoreSavedColor() {
+    if (!this.activeMaterial || !this.activeMaterial.color) {
+      return;
+    }
+    const target = this.savedColorHex || '#ffffff';
+    const normalized = target.startsWith('#') ? target.slice(1) : target;
+    const currentHex = this.activeMaterial.color.getHexString();
+    if (currentHex.toLowerCase() !== normalized.toLowerCase()) {
+      this.activeMaterial.color.set(`#${normalized}`);
+      this.activeMaterial.needsUpdate = true;
+    }
+    const normalizedWithHash = `#${normalized}`;
+    if (this.activeMaterial) {
+      this.activeMaterial.userData = this.activeMaterial.userData ?? {};
+      this.activeMaterial.userData.__baseColorBackup = normalizedWithHash;
+    }
+    if (this.colorInput) {
+      this.colorInput.value = normalizedWithHash;
+    }
+    this.savedColorHex = normalizedWithHash;
+  }
+
+  /**
    * Применяет цвет из color-инпута к материалу.
    */
   #applyColorFromInput() {
@@ -395,6 +483,11 @@ export class MaterialPanel {
     try {
       this.activeMaterial.color?.set(value);
       this.activeMaterial.needsUpdate = true;
+      this.savedColorHex = value;
+      if (this.activeMaterial) {
+        this.activeMaterial.userData = this.activeMaterial.userData ?? {};
+        this.activeMaterial.userData.__baseColorBackup = this.savedColorHex;
+      }
     } catch (error) {
       console.warn('Не удалось применить цвет', error);
     }
@@ -407,8 +500,22 @@ export class MaterialPanel {
     if (!this.textureImage) {
       return;
     }
-    const preview = this.activeMaterial?.map ? getTexturePreview(this.activeMaterial.map) : null;
-    this.textureImage.src = preview ?? this.savedColorPreview ?? WHITE_PREVIEW;
+    const map = this.activeMaterial?.map ?? null;
+    let preview = WHITE_PREVIEW;
+    let isUploaded = false;
+    if (map) {
+      preview = getTexturePreview(map) ?? WHITE_PREVIEW;
+      isUploaded = Boolean(map.userData?.__isUploaded);
+    } else if (this.savedColorTexture) {
+      preview = this.savedColorPreview ?? WHITE_PREVIEW;
+      isUploaded = this.savedColorIsUpload;
+    } else {
+      preview = this.savedColorPreview ?? WHITE_PREVIEW;
+    }
+    this.textureImage.src = preview ?? WHITE_PREVIEW;
+    if (this.textureTarget) {
+      this.textureTarget.classList.toggle('texture-upload--no-preview', isUploaded);
+    }
   }
 
   /**
@@ -418,8 +525,13 @@ export class MaterialPanel {
     if (!this.normalTextureImage) {
       return;
     }
-    const preview = this.activeMaterial?.normalMap ? getTexturePreview(this.activeMaterial.normalMap) : null;
+    const normalMap = this.activeMaterial?.normalMap ?? null;
+    const preview = normalMap ? getTexturePreview(normalMap) : null;
     this.normalTextureImage.src = preview ?? NEUTRAL_NORMAL_PREVIEW;
+    if (this.normalTextureTarget) {
+      const isUploaded = Boolean(normalMap?.userData?.__isUploaded);
+      this.normalTextureTarget.classList.toggle('texture-upload--no-preview', isUploaded);
+    }
   }
 
   /**
@@ -451,10 +563,10 @@ export class MaterialPanel {
       this.activeMaterial.needsUpdate = true;
       this.savedColorTexture = texture;
       this.savedColorPreview = getTexturePreview(texture) ?? WHITE_PREVIEW;
-      if (this.colorMode !== 'texture') {
-        this.colorMode = 'texture';
-        this.#updateColorModeView();
-      }
+      this.savedColorIsUpload = true;
+      this.colorMode = 'texture';
+      this.#ensureTextureColorNeutral();
+      this.#updateColorModeView();
       this.#updateBaseTexturePreview();
     } catch (error) {
       console.error('Не удалось загрузить текстуру цвета', error);
@@ -492,6 +604,10 @@ export class MaterialPanel {
     }
     this.savedColorTexture = null;
     this.savedColorPreview = WHITE_PREVIEW;
+    this.savedColorIsUpload = false;
+    this.colorMode = 'color';
+    this.#restoreSavedColor();
+    this.#updateColorModeView();
     this.#updateBaseTexturePreview();
   }
 
@@ -503,6 +619,8 @@ export class MaterialPanel {
       return;
     }
     const neutral = getNeutralNormalTexture();
+    neutral.userData = neutral.userData ?? {};
+    neutral.userData.__isUploaded = false;
     this.activeMaterial.normalMap = neutral;
     if (this.activeMaterial.normalScale) {
       this.activeMaterial.normalScale.set(1, 1);
@@ -548,6 +666,8 @@ export class MaterialPanel {
       texture.colorSpace = colorSpace;
       texture.name = file.name;
       texture.needsUpdate = true;
+      texture.userData = texture.userData ?? {};
+      texture.userData.__isUploaded = true;
       return texture;
     } finally {
       URL.revokeObjectURL(url);
@@ -562,7 +682,12 @@ export class MaterialPanel {
     this.activeMaterial = null;
     this.savedColorTexture = null;
     this.savedColorPreview = WHITE_PREVIEW;
+    this.savedColorIsUpload = false;
+    this.savedColorHex = '#ffffff';
     this.colorMode = 'color';
+    if (this.colorInput) {
+      this.colorInput.value = this.savedColorHex;
+    }
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
     this.#updateNormalPreview();
@@ -570,6 +695,12 @@ export class MaterialPanel {
       this.normalStrengthInput.value = '1';
     }
     this.#updateNormalStrengthValue();
+    if (this.textureTarget) {
+      this.textureTarget.classList.remove('texture-upload--no-preview');
+    }
+    if (this.normalTextureTarget) {
+      this.normalTextureTarget.classList.remove('texture-upload--no-preview');
+    }
   }
 
   /**

@@ -46,8 +46,41 @@ canvas#scene {
   left: 0;
 }
 
+.panel--left::after,
+.panel--right::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 18px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.panel--left::after {
+  right: -18px;
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.16) 0%,
+    rgba(15, 23, 42, 0.08) 35%,
+    rgba(15, 23, 42, 0) 100%
+  );
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+}
+
 .panel--right {
   right: 0;
+}
+
+.panel--right::after {
+  left: -18px;
+  background: linear-gradient(
+    270deg,
+    rgba(15, 23, 42, 0.16) 0%,
+    rgba(15, 23, 42, 0.08) 35%,
+    rgba(15, 23, 42, 0) 100%
+  );
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
 }
 
 .panel__import {
@@ -450,6 +483,14 @@ canvas#scene {
 
 .texture-upload:hover .texture-upload__label,
 .texture-upload:focus-within .texture-upload__label {
+  opacity: 1;
+}
+
+.texture-upload--no-preview .texture-upload__image {
+  opacity: 0;
+}
+
+.texture-upload--no-preview .texture-upload__label {
   opacity: 1;
 }
 
