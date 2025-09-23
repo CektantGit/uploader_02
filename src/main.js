@@ -98,6 +98,13 @@ canvas.addEventListener('pointerup', (event) => {
   }
   const ndc = sceneManager.getPointerNDC(event);
   const intersections = sceneManager.intersectObjects(ndc);
-  const firstHit = intersections.length > 0 ? intersections[0].object : null;
-  selectionManager.selectFromScene(firstHit, event.shiftKey);
+  let targetMesh = null;
+  for (const intersection of intersections) {
+    const mesh = selectionManager.findRegisteredMesh(intersection.object);
+    if (mesh) {
+      targetMesh = mesh;
+      break;
+    }
+  }
+  selectionManager.selectFromScene(targetMesh, event.shiftKey);
 });

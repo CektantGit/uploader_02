@@ -59,7 +59,7 @@ export class SelectionManager extends EventTarget {
    * @param {boolean} additive
    */
   selectFromScene(object, additive) {
-    const mesh = object ? this.#findRegisteredMesh(object) : null;
+    const mesh = this.findRegisteredMesh(object);
     if (!mesh) {
       if (!additive) {
         this.clearSelection();
@@ -67,6 +67,15 @@ export class SelectionManager extends EventTarget {
       return;
     }
     this.#selectMesh(mesh, additive);
+  }
+
+  /**
+   * Возвращает зарегистрированный меш по объекту сцены.
+   * @param {import('three').Object3D | null} object
+   * @returns {import('three').Object3D | null}
+   */
+  findRegisteredMesh(object) {
+    return object ? this.#findRegisteredMesh(object) : null;
   }
 
   /**

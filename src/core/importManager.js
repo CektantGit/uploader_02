@@ -1,4 +1,6 @@
+import { FBXLoader } from 'FBXLoader';
 import { GLTFLoader } from 'GLTFLoader';
+import { OBJLoader } from 'OBJLoader';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 
 /**
@@ -14,7 +16,9 @@ export class ImportManager {
     this.sceneManager = sceneManager;
     this.selectionManager = selectionManager;
     this.panel = panel;
-    this.loader = new GLTFLoader();
+    this.gltfLoader = new GLTFLoader();
+    this.fbxLoader = new FBXLoader();
+    this.objLoader = new OBJLoader();
   }
 
   /**
@@ -23,9 +27,14 @@ export class ImportManager {
    * @returns {Promise<void>}
    */
   async importModel(file) {
+    const extension = this.#getExtension(file.name);
+    if (!extension) {
+      throw new Error('Unsupported file format');
+    }
+
     const arrayBuffer = await file.arrayBuffer();
-    const gltf = await this.#parseGLTF(arrayBuffer);
-    const meshes = this.#extractMeshes(gltf.scene, file.name || 'Mesh');
+    const root = await this.#parseByExtension(extension, arrayBuffer);
+    const meshes = this.#extractMeshes(root, file.name || 'Mesh');
     meshes.forEach((mesh) => {
       mesh.visible = true;
       mesh.matrixAutoUpdate = true;
@@ -56,7 +65,7 @@ export class ImportManager {
    */
   #parseGLTF(buffer) {
     return new Promise((resolve, reject) => {
-      this.loader.parse(
+      this.gltfLoader.parse(
         buffer,
         '',
         (gltf) => resolve(gltf),
@@ -66,7 +75,58 @@ export class ImportManager {
   }
 
   /**
-   * Извлекает меши из glTF-сцены, перенося мировые матрицы в локальные координаты.
+   * Разбирает FBX модель из ArrayBuffer.
+   * @param {ArrayBuffer} buffer
+   * @returns {Promise<import('three').Object3D>}
+   */
+  async #parseFBX(buffer) {
+    return this.fbxLoader.parse(buffer, '');
+  }
+
+  /**
+   * Разбирает OBJ модель из ArrayBuffer.
+   * @param {ArrayBuffer} buffer
+   * @returns {Promise<import('three').Object3D>}
+   */
+  async #parseOBJ(buffer) {
+    const text = new TextDecoder('utf-8').decode(buffer);
+    return this.objLoader.parse(text);
+  }
+
+  /**
+   * Выбирает соответствующий парсер по расширению файла.
+   * @param {string} extension
+   * @param {ArrayBuffer} buffer
+   * @returns {Promise<import('three').Object3D>}
+   */
+  async #parseByExtension(extension, buffer) {
+    switch (extension) {
+      case 'gltf':
+      case 'glb': {
+        const gltf = await this.#parseGLTF(buffer);
+        return gltf.scene;
+      }
+      case 'fbx':
+        return this.#parseFBX(buffer);
+      case 'obj':
+        return this.#parseOBJ(buffer);
+      default:
+        throw new Error(`Unsupported file extension: ${extension}`);
+    }
+  }
+
+  /**
+   * Возвращает расширение файла в нижнем регистре.
+   * @param {string} fileName
+   * @returns {string | null}
+   */
+  #getExtension(fileName) {
+    const match = /\.([^.]+)$/.exec(fileName ?? '');
+    return match ? match[1].toLowerCase() : null;
+  }
+
+  /**
+   * Извлекает меши из корневого объекта модели, перенося мировые матрицы в локальные координаты.
    * @param {import('three').Object3D} root
    * @param {string} fileName
    * @returns {import('three').Object3D[]}
@@ -87,6 +147,12 @@ export class ImportManager {
       }
       const mesh = child.clone();
       mesh.geometry = child.geometry.clone();
+      if (mesh.geometry.boundingBox === null) {
+        mesh.geometry.computeBoundingBox();
+      }
+      if (mesh.geometry.boundingSphere === null) {
+        mesh.geometry.computeBoundingSphere();
+      }
       if (Array.isArray(child.material)) {
         mesh.material = child.material.map((material) => material.clone());
       } else if (child.material) {
