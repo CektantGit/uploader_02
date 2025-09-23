@@ -225,32 +225,11 @@ export class SelectionManager extends EventTarget {
   }
 
   /**
-   * Подсвечивает меш и его геометрию для визуальной обратной связи.
-   * @param {import('three').Object3D} mesh
-   * @param {boolean} highlighted
+   * В текущей версии визуальная подсветка не применяется, метод зарезервирован под будущее расширение.
+   * @param {import('three').Object3D} _mesh
+   * @param {boolean} _highlighted
    */
-  #setMeshHighlighted(mesh, highlighted) {
-    mesh.traverse((child) => {
-      if (!child.isMesh || !child.material) {
-        return;
-      }
-      if (highlighted) {
-        if (!child.userData.__selectionMaterialCloned) {
-          child.material = child.material.clone();
-          child.userData.__selectionMaterialCloned = true;
-        }
-        if (!child.userData.__originalColor && child.material.color) {
-          child.userData.__originalColor = child.material.color.clone();
-        }
-        if (child.material.color && child.userData.__originalColor) {
-          child.material.color.copy(child.userData.__originalColor);
-          child.material.color.offsetHSL(0, 0, 0.2);
-        }
-      } else if (child.userData.__originalColor && child.material.color) {
-        child.material.color.copy(child.userData.__originalColor);
-      }
-    });
-  }
+  #setMeshHighlighted(_mesh, _highlighted) {}
 
   /**
    * Обновляет выделение в DOM-списке мешей.

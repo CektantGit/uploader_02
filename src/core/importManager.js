@@ -1,7 +1,7 @@
 import { FBXLoader } from 'FBXLoader';
 import { GLTFLoader } from 'GLTFLoader';
 import { OBJLoader } from 'OBJLoader';
-import { Matrix4, Quaternion, Vector3 } from 'three';
+import { Matrix4, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
 
 /**
  * Отвечает за загрузку файлов и добавление новых мешей в сцену и UI.
@@ -153,11 +153,7 @@ export class ImportManager {
       if (mesh.geometry.boundingSphere === null) {
         mesh.geometry.computeBoundingSphere();
       }
-      if (Array.isArray(child.material)) {
-        mesh.material = child.material.map((material) => material.clone());
-      } else if (child.material) {
-        mesh.material = child.material.clone();
-      }
+      mesh.material = this.#cloneMaterial(child.material);
       matrix.copy(child.matrixWorld);
       matrix.decompose(position, quaternion, scale);
       mesh.position.copy(position);
@@ -171,5 +167,124 @@ export class ImportManager {
       index += 1;
     });
     return meshes;
+  }
+
+  /**
+   * Создает копию материала, конвертируя legacy-материалы в MeshStandardMaterial для корректной работы с HDR.
+   * @param {import('three').Material | import('three').Material[] | null | undefined} material
+   * @returns {import('three').Material | import('three').Material[] | null | undefined}
+   */
+  #cloneMaterial(material) {
+    if (!material) {
+      return material ?? null;
+    }
+    if (Array.isArray(material)) {
+      return material.map((mat) => this.#cloneSingleMaterial(mat));
+    }
+    return this.#cloneSingleMaterial(material);
+  }
+
+  /**
+   * Клонирует или конвертирует единичный материал.
+   * @param {import('three').Material} material
+   * @returns {import('three').Material}
+   */
+  #cloneSingleMaterial(material) {
+    if (!material) {
+      return material;
+    }
+    if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
+      return material.clone();
+    }
+    if (material.isMeshPhongMaterial || material.isMeshLambertMaterial) {
+      return this.#convertToStandard(material);
+    }
+    if (typeof material.clone === 'function') {
+      return material.clone();
+    }
+    return material;
+  }
+
+  /**
+   * Переносит основные свойства Phong/Lambert материалов в MeshStandardMaterial, чтобы он освещался HDR окружением.
+   * @param {import('three').Material & { color?: import('three').Color; emissive?: import('three').Color; shininess?: number; roughness?: number; metalness?: number; map?: any; normalMap?: any; emissiveMap?: any; aoMap?: any; alphaMap?: any; lightMap?: any; }} source
+   * @returns {MeshStandardMaterial}
+   */
+  #convertToStandard(source) {
+    const standard = new MeshStandardMaterial();
+    standard.name = source.name;
+    if ('color' in source && source.color) {
+      standard.color.copy(source.color);
+    }
+    if ('map' in source) {
+      standard.map = source.map ?? null;
+    }
+    if ('normalMap' in source) {
+      standard.normalMap = source.normalMap ?? null;
+      if ('normalScale' in source && source.normalScale) {
+        standard.normalScale.copy(source.normalScale);
+      }
+    }
+    if ('emissive' in source && source.emissive) {
+      standard.emissive.copy(source.emissive);
+    }
+    if ('emissiveMap' in source) {
+      standard.emissiveMap = source.emissiveMap ?? null;
+    }
+    if ('aoMap' in source) {
+      standard.aoMap = source.aoMap ?? null;
+      if ('aoMapIntensity' in source && typeof source.aoMapIntensity === 'number') {
+        standard.aoMapIntensity = source.aoMapIntensity;
+      }
+    }
+    if ('lightMap' in source) {
+      standard.lightMap = source.lightMap ?? null;
+      if ('lightMapIntensity' in source && typeof source.lightMapIntensity === 'number') {
+        standard.lightMapIntensity = source.lightMapIntensity;
+      }
+    }
+    if ('alphaMap' in source) {
+      standard.alphaMap = source.alphaMap ?? null;
+    }
+    if ('transparent' in source) {
+      standard.transparent = source.transparent;
+    }
+    if ('opacity' in source && typeof source.opacity === 'number') {
+      standard.opacity = source.opacity;
+    }
+    if ('side' in source) {
+      standard.side = source.side;
+    }
+    if ('flatShading' in source) {
+      standard.flatShading = source.flatShading;
+    }
+    if ('depthWrite' in source) {
+      standard.depthWrite = source.depthWrite;
+    }
+    if ('depthTest' in source) {
+      standard.depthTest = source.depthTest;
+    }
+    if ('skinning' in source) {
+      standard.skinning = source.skinning;
+    }
+    if ('morphTargets' in source) {
+      standard.morphTargets = source.morphTargets;
+    }
+    if ('morphNormals' in source) {
+      standard.morphNormals = source.morphNormals;
+    }
+    if ('roughness' in source && typeof source.roughness === 'number') {
+      standard.roughness = source.roughness;
+    } else if ('shininess' in source && typeof source.shininess === 'number') {
+      const normalized = Math.min(source.shininess / 100, 1);
+      standard.roughness = 1 - normalized;
+    }
+    if ('metalness' in source && typeof source.metalness === 'number') {
+      standard.metalness = source.metalness;
+    } else {
+      standard.metalness = 0;
+    }
+    standard.envMapIntensity = 1;
+    return standard;
   }
 }
