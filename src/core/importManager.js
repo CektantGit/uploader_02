@@ -1,7 +1,7 @@
 import { FBXLoader } from 'FBXLoader';
 import { GLTFLoader } from 'GLTFLoader';
 import { OBJLoader } from 'OBJLoader';
-import { Matrix4, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
+import { BufferAttribute, BufferGeometry, Matrix4, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
 
 /**
  * Отвечает за загрузку файлов и добавление новых мешей в сцену и UI.
@@ -145,28 +145,192 @@ export class ImportManager {
       if (!child.isMesh) {
         return;
       }
-      const mesh = child.clone();
-      mesh.geometry = child.geometry.clone();
-      if (mesh.geometry.boundingBox === null) {
-        mesh.geometry.computeBoundingBox();
-      }
-      if (mesh.geometry.boundingSphere === null) {
-        mesh.geometry.computeBoundingSphere();
-      }
-      mesh.material = this.#cloneMaterial(child.material);
+
       matrix.copy(child.matrixWorld);
       matrix.decompose(position, quaternion, scale);
-      mesh.position.copy(position);
-      mesh.quaternion.copy(quaternion);
-      mesh.scale.copy(scale);
-      mesh.name = child.name || `${baseName}_${index}`;
-      mesh.userData.source = fileName;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      meshes.push(mesh);
-      index += 1;
+      const transform = { position, quaternion, scale };
+      const clones = this.#cloneAndSplitMesh(child, transform);
+
+      clones.forEach((mesh, cloneIndex) => {
+        const hasMultiple = clones.length > 1;
+        if (child.name) {
+          mesh.name = hasMultiple ? `${child.name}_part${cloneIndex + 1}` : child.name;
+        } else {
+          mesh.name = `${baseName}_${index}`;
+        }
+        mesh.userData.source = fileName;
+        meshes.push(mesh);
+        index += 1;
+      });
     });
     return meshes;
+  }
+
+  /**
+   * Клонирует меш и при необходимости разбивает его по материалам.
+   * @param {import('three').Mesh} child
+   * @param {{ position: Vector3; quaternion: Quaternion; scale: Vector3 }} transform
+   * @returns {import('three').Mesh[]}
+   */
+  #cloneAndSplitMesh(child, transform) {
+    const clones = [];
+    const materials = Array.isArray(child.material)
+      ? /** @type {import('three').Material[]} */ (child.material)
+      : [/** @type {import('three').Material} */ (child.material)];
+    const hasMultipleMaterials = Array.isArray(child.material) && materials.length > 1;
+    const baseUserData = child.userData ? { ...child.userData } : {};
+
+    if (hasMultipleMaterials) {
+      const workingGeometry = child.geometry.index
+        ? child.geometry.toNonIndexed()
+        : child.geometry.clone();
+      const groups = child.geometry.groups?.length
+        ? child.geometry.groups
+        : [
+            {
+              start: 0,
+              count: workingGeometry.getAttribute('position')?.count ?? 0,
+              materialIndex: 0,
+            },
+          ];
+      const rangesByMaterial = new Map();
+
+      groups.forEach((group) => {
+        const materialIndex = Math.min(
+          materials.length - 1,
+          Math.max(0, group.materialIndex ?? 0),
+        );
+        const material = materials[materialIndex];
+        if (!material) {
+          return;
+        }
+        if (!rangesByMaterial.has(materialIndex)) {
+          rangesByMaterial.set(materialIndex, []);
+        }
+        rangesByMaterial.get(materialIndex).push({ start: group.start, count: group.count });
+      });
+
+      rangesByMaterial.forEach((ranges, materialIndex) => {
+        const geometry = this.#buildGeometryFromRanges(workingGeometry, ranges);
+        const positionAttribute = geometry.getAttribute('position');
+        if (!positionAttribute || positionAttribute.count === 0) {
+          return;
+        }
+        const mesh = child.clone(false);
+        mesh.geometry = geometry;
+        mesh.material = this.#cloneSingleMaterial(materials[materialIndex]);
+        mesh.userData = { ...baseUserData };
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        this.#applyTransform(mesh, transform);
+        clones.push(mesh);
+      });
+
+      if (!clones.length) {
+        const mesh = child.clone(false);
+        mesh.geometry = child.geometry.clone();
+        this.#ensureGeometryBounds(mesh.geometry);
+        mesh.material = this.#cloneMaterial(child.material);
+        mesh.userData = { ...baseUserData };
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        this.#applyTransform(mesh, transform);
+        clones.push(mesh);
+      }
+    } else {
+      const mesh = child.clone(false);
+      mesh.geometry = child.geometry.clone();
+      this.#ensureGeometryBounds(mesh.geometry);
+      mesh.material = this.#cloneMaterial(child.material);
+      mesh.userData = { ...baseUserData };
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.#applyTransform(mesh, transform);
+      clones.push(mesh);
+    }
+
+    return clones;
+  }
+
+  /**
+   * Собирает BufferGeometry из диапазонов вершин.
+   * @param {BufferGeometry} sourceGeometry
+   * @param {{ start: number; count: number }[]} ranges
+   * @returns {BufferGeometry}
+   */
+  #buildGeometryFromRanges(sourceGeometry, ranges) {
+    const geometry = new BufferGeometry();
+    geometry.morphTargetsRelative = sourceGeometry.morphTargetsRelative ?? false;
+    geometry.userData = { ...sourceGeometry.userData };
+
+    const totalCount = ranges.reduce((sum, range) => sum + range.count, 0);
+    const attributes = sourceGeometry.attributes;
+
+    Object.keys(attributes).forEach((name) => {
+      const attribute = /** @type {import('three').BufferAttribute} */ (attributes[name]);
+      const ArrayType = attribute.array.constructor;
+      const itemSize = attribute.itemSize;
+      const newArray = new ArrayType(totalCount * itemSize);
+      let offset = 0;
+      ranges.forEach((range) => {
+        const start = range.start * itemSize;
+        const end = start + range.count * itemSize;
+        newArray.set(attribute.array.subarray(start, end), offset);
+        offset += range.count * itemSize;
+      });
+      geometry.setAttribute(name, new BufferAttribute(newArray, itemSize, attribute.normalized));
+    });
+
+    const morphAttributes = sourceGeometry.morphAttributes ?? {};
+    const morphKeys = Object.keys(morphAttributes);
+    if (morphKeys.length > 0) {
+      geometry.morphAttributes = {};
+      morphKeys.forEach((key) => {
+        const sourceMorphs = morphAttributes[key];
+        geometry.morphAttributes[key] = sourceMorphs.map((morphAttribute) => {
+          const ArrayType = morphAttribute.array.constructor;
+          const itemSize = morphAttribute.itemSize;
+          const newArray = new ArrayType(totalCount * itemSize);
+          let offset = 0;
+          ranges.forEach((range) => {
+            const start = range.start * itemSize;
+            const end = start + range.count * itemSize;
+            newArray.set(morphAttribute.array.subarray(start, end), offset);
+            offset += range.count * itemSize;
+          });
+          return new BufferAttribute(newArray, itemSize, morphAttribute.normalized);
+        });
+      });
+    }
+
+    geometry.setDrawRange(0, totalCount);
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+    return geometry;
+  }
+
+  /**
+   * Копирует мировую трансформацию в меш.
+   * @param {import('three').Mesh} mesh
+   * @param {{ position: Vector3; quaternion: Quaternion; scale: Vector3 }} transform
+   */
+  #applyTransform(mesh, transform) {
+    mesh.position.copy(transform.position);
+    mesh.quaternion.copy(transform.quaternion);
+    mesh.scale.copy(transform.scale);
+  }
+
+  /**
+   * Гарантирует наличие рассчитанных границ геометрии.
+   * @param {BufferGeometry} geometry
+   */
+  #ensureGeometryBounds(geometry) {
+    if (geometry.boundingBox === null) {
+      geometry.computeBoundingBox();
+    }
+    if (geometry.boundingSphere === null) {
+      geometry.computeBoundingSphere();
+    }
   }
 
   /**
