@@ -56,6 +56,8 @@ export class OutlineManager extends EventTarget {
     this.hoveredMesh = null;
     this.dirty = true;
     this.#enabled = true;
+    this.baseRenderMask = this.sceneManager.camera.layers.mask;
+    this.overlayLayer = null;
 
     this.sceneManager.setRenderOverride(() => this.render());
     window.addEventListener('resize', this.#handleResize);
@@ -75,10 +77,21 @@ export class OutlineManager extends EventTarget {
       return;
     }
     this.#enabled = enabled;
-    this.selectionOutlinePass.enabled = enabled;
-    this.hoverOutlinePass.enabled = enabled;
+    this.selectionOutlinePass.enabled = false;
+    this.hoverOutlinePass.enabled = false;
     this.dirty = true;
     this.dispatchEvent(new CustomEvent('toggle', { detail: { enabled } }));
+  }
+
+  /**
+   * Регистрирует слой, который должен рендериться поверх постпроцессинга (например, TransformControls).
+   * @param {number | null} layerIndex
+   */
+  setOverlayLayer(layerIndex) {
+    this.overlayLayer = typeof layerIndex === 'number' ? layerIndex : null;
+    if (this.overlayLayer !== null) {
+      this.sceneManager.camera.layers.enable(this.overlayLayer);
+    }
   }
 
   /**
@@ -132,16 +145,37 @@ export class OutlineManager extends EventTarget {
       const selectionTargets = Array.from(this.selectedMeshes).filter(
         (mesh) => mesh !== this.hoveredMesh,
       );
+      const hasSelection = selectionTargets.length > 0;
+      const hasHover = Boolean(this.hoveredMesh);
       this.selectionOutlinePass.selectedObjects = selectionTargets;
-      this.hoverOutlinePass.selectedObjects = this.hoveredMesh ? [this.hoveredMesh] : [];
+      this.hoverOutlinePass.selectedObjects = hasHover ? [this.hoveredMesh] : [];
+      this.selectionOutlinePass.enabled = this.#enabled && hasSelection;
+      this.hoverOutlinePass.enabled = this.#enabled && hasHover;
       this.dirty = false;
     }
 
-    if (this.#enabled) {
+    const renderer = this.sceneManager.renderer;
+    const camera = this.sceneManager.camera;
+    const previousMask = camera.layers.mask;
+    const previousAutoClear = renderer.autoClear;
+    const useComposer = this.#enabled && (this.selectionOutlinePass.enabled || this.hoverOutlinePass.enabled);
+
+    camera.layers.mask = this.baseRenderMask;
+
+    if (useComposer) {
       this.composer.render();
     } else {
-      this.sceneManager.renderer.render(this.sceneManager.scene, this.sceneManager.camera);
+      renderer.render(this.sceneManager.scene, camera);
     }
+
+    if (this.overlayLayer !== null) {
+      renderer.autoClear = false;
+      camera.layers.set(this.overlayLayer);
+      renderer.render(this.sceneManager.scene, camera);
+    }
+
+    renderer.autoClear = previousAutoClear;
+    camera.layers.mask = previousMask;
   }
 
   /**

@@ -27,9 +27,54 @@ const toolbar = new Toolbar(toolbarElement);
 const inspector = new Inspector(inspectorElement, transformManager, selectionManager);
 const importManager = new ImportManager(sceneManager, selectionManager, panel);
 const outlineManager = new OutlineManager(sceneManager);
+outlineManager.setOverlayLayer(transformManager.getOverlayLayer());
 
 let pointerDownPosition = null;
 let transformRecentlyActive = false;
+/** @type {{ clientX: number; clientY: number } | null} */
+let pendingHoverPointer = null;
+let hoverFrameHandle = null;
+
+const cancelScheduledHover = () => {
+  if (hoverFrameHandle !== null) {
+    window.cancelAnimationFrame(hoverFrameHandle);
+    hoverFrameHandle = null;
+  }
+  pendingHoverPointer = null;
+};
+
+const scheduleHoverRaycast = () => {
+  if (hoverFrameHandle !== null) {
+    return;
+  }
+  hoverFrameHandle = window.requestAnimationFrame(() => {
+    hoverFrameHandle = null;
+    if (!pendingHoverPointer) {
+      outlineManager.setHoveredMesh(null);
+      return;
+    }
+    const pointer = pendingHoverPointer;
+    pendingHoverPointer = null;
+    const ndc = sceneManager.getPointerNDC(
+      /** @type {PointerEvent} */ ({ clientX: pointer.clientX, clientY: pointer.clientY }),
+    );
+    const registeredMeshes = selectionManager.getRegisteredMeshes();
+    if (registeredMeshes.length === 0) {
+      outlineManager.setHoveredMesh(null);
+      return;
+    }
+    const intersections = sceneManager.intersectMeshes(ndc, registeredMeshes);
+    let hovered = null;
+    for (const intersection of intersections) {
+      const mesh = selectionManager.findRegisteredMesh(intersection.object);
+      if (mesh) {
+        hovered = mesh;
+        break;
+      }
+    }
+    outlineManager.setHoveredMesh(hovered);
+  });
+};
 
 const updateOutlineToggle = (enabled) => {
   outlineToggleButton.classList.toggle('outline-toggle--active', enabled);
@@ -95,6 +140,7 @@ transformManager.addEventListener('modechange', (event) => {
 transformManager.addEventListener('draggingchange', (event) => {
   if (event.detail.dragging) {
     transformRecentlyActive = true;
+    cancelScheduledHover();
     outlineManager.setHoveredMesh(null);
   } else {
     window.setTimeout(() => {
@@ -120,7 +166,8 @@ canvas.addEventListener('pointerup', (event) => {
     return;
   }
   const ndc = sceneManager.getPointerNDC(event);
-  const intersections = sceneManager.intersectObjects(ndc);
+  const registeredMeshes = selectionManager.getRegisteredMeshes();
+  const intersections = sceneManager.intersectMeshes(ndc, registeredMeshes);
   let targetMesh = null;
   for (const intersection of intersections) {
     const mesh = selectionManager.findRegisteredMesh(intersection.object);
@@ -130,30 +177,26 @@ canvas.addEventListener('pointerup', (event) => {
     }
   }
   selectionManager.selectFromScene(targetMesh, event.shiftKey);
+  pendingHoverPointer = { clientX: event.clientX, clientY: event.clientY };
+  scheduleHoverRaycast();
 });
 
 canvas.addEventListener('pointermove', (event) => {
   if (transformManager.isDragging) {
+    cancelScheduledHover();
     outlineManager.setHoveredMesh(null);
     return;
   }
   if (event.buttons !== 0) {
+    cancelScheduledHover();
     outlineManager.setHoveredMesh(null);
     return;
   }
-  const ndc = sceneManager.getPointerNDC(event);
-  const intersections = sceneManager.intersectObjects(ndc);
-  let hovered = null;
-  for (const intersection of intersections) {
-    const mesh = selectionManager.findRegisteredMesh(intersection.object);
-    if (mesh) {
-      hovered = mesh;
-      break;
-    }
-  }
-  outlineManager.setHoveredMesh(hovered);
+  pendingHoverPointer = { clientX: event.clientX, clientY: event.clientY };
+  scheduleHoverRaycast();
 });
 
 canvas.addEventListener('pointerleave', () => {
+  cancelScheduledHover();
   outlineManager.setHoveredMesh(null);
 });

@@ -10,6 +10,9 @@ export class SelectionManager extends EventTarget {
     /** @type {Map<string, { mesh: import('three').Object3D, li: HTMLElement }>} */
     this.meshMap = new Map();
     this.lastSelectedId = null;
+    /** @type {import('three').Object3D[]} */
+    this.cachedMeshList = [];
+    this.meshListDirty = true;
   }
 
   /**
@@ -20,6 +23,7 @@ export class SelectionManager extends EventTarget {
   registerMesh(mesh, li) {
     this.meshMap.set(mesh.uuid, { mesh, li });
     li.dataset.uuid = mesh.uuid;
+    this.meshListDirty = true;
     this.#updateListHighlight();
   }
 
@@ -38,6 +42,7 @@ export class SelectionManager extends EventTarget {
     }
     this.selectedMeshes.delete(record.mesh);
     this.#setMeshHighlighted(record.mesh, false);
+    this.meshListDirty = true;
     this.#updateListHighlight();
     if (this.lastSelectedId === uuid) {
       this.lastSelectedId = null;
@@ -51,6 +56,18 @@ export class SelectionManager extends EventTarget {
    */
   getSelectionState() {
     return { selectedMeshes: this.selectedMeshes };
+  }
+
+  /**
+   * Возвращает массив всех зарегистрированных мешей.
+   * @returns {import('three').Object3D[]}
+   */
+  getRegisteredMeshes() {
+    if (this.meshListDirty) {
+      this.cachedMeshList = Array.from(this.meshMap.values()).map((entry) => entry.mesh);
+      this.meshListDirty = false;
+    }
+    return this.cachedMeshList;
   }
 
   /**

@@ -149,6 +149,20 @@ export class SceneManager {
   }
 
   /**
+   * Выполняет raycast по конкретному набору мешей.
+   * @param {Vector2} ndc
+   * @param {import('three').Object3D[]} meshes
+   * @returns {import('three').Intersection[]}
+   */
+  intersectMeshes(ndc, meshes) {
+    if (!meshes.length) {
+      return [];
+    }
+    this.raycaster.setFromCamera(ndc, this.camera);
+    return this.raycaster.intersectObjects(meshes, false);
+  }
+
+  /**
    * Добавляет меш в сцену.
    * @param {import('three').Object3D} mesh
    */

@@ -8,6 +8,8 @@ const MODE_MAP = {
   scale: 'scale',
 };
 
+const OVERLAY_LAYER = 1;
+
 /**
  * Управляет TransformControls и общим anchor-объектом для множественных трансформаций.
  */
@@ -30,6 +32,10 @@ export class TransformManager extends EventTarget {
     this.transformControls.visible = false;
     this.transformControls.setSpace('world');
     this.sceneManager.scene.add(this.transformControls);
+    this.transformControls.layers.set(OVERLAY_LAYER);
+    this.transformControls.traverse((child) => {
+      child.layers.set(OVERLAY_LAYER);
+    });
 
     /** @type {Set<import('three').Object3D>} */
     this.currentSelection = new Set();
@@ -58,6 +64,14 @@ export class TransformManager extends EventTarget {
       this.#applyAnchorTransform();
       this.dispatchEvent(new CustomEvent('transformchange', { detail: this.getState() }));
     });
+  }
+
+  /**
+   * Возвращает номер слоя, в котором рендерятся TransformControls.
+   * @returns {number}
+   */
+  getOverlayLayer() {
+    return OVERLAY_LAYER;
   }
 
   /**
