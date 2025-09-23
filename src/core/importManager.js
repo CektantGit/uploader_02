@@ -225,12 +225,10 @@ export class ImportManager {
         standard.normalScale.copy(source.normalScale);
       }
     }
-    if ('emissive' in source && source.emissive) {
-      standard.emissive.copy(source.emissive);
-    }
-    if ('emissiveMap' in source) {
-      standard.emissiveMap = source.emissiveMap ?? null;
-    }
+    // Эмиссив часто приводит к "выбеленным" мешам после конвертации — отключаем его.
+    standard.emissive.setRGB(0, 0, 0);
+    standard.emissiveMap = null;
+    standard.emissiveIntensity = 0;
     if ('aoMap' in source) {
       standard.aoMap = source.aoMap ?? null;
       if ('aoMapIntensity' in source && typeof source.aoMapIntensity === 'number') {
