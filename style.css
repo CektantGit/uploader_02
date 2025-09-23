@@ -1,47 +1,188 @@
-* {
-  box-sizing: border-box;
+:root {
+  --panel-width: 20vw;
+  --toolbar-height: 56px;
+  --toolbar-bg: rgba(255, 255, 255, 0.9);
+  --panel-bg: rgba(32, 32, 32, 0.85);
+  --panel-text: #f5f5f5;
+  --accent-color: #3f7ef9;
+  --danger-color: #e65c4f;
+  --border-color: rgba(255, 255, 255, 0.1);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 html,
 body {
   margin: 0;
-  padding: 0;
   height: 100%;
   overflow: hidden;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #ffffff;
+  background: #111;
 }
 
-canvas {
-  display: block;
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+#viewport {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  display: block;
 }
 
-.outline-toggle {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 999px;
+#panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--panel-width);
+  height: 100%;
+  background: var(--panel-bg);
+  color: var(--panel-text);
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 16px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  backdrop-filter: blur(12px);
+}
+
+#panel button,
+#toolbar button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
   font-size: 14px;
-  font-weight: 600;
   cursor: pointer;
-  color: #ffffff;
-  transition: background-color 0.2s ease;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
+  transition: background 0.15s ease, border 0.15s ease;
 }
 
-.outline-toggle--on {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+#panel button:hover,
+#toolbar button:hover {
+  background: rgba(255, 255, 255, 0.16);
 }
 
-.outline-toggle--off {
-  background: linear-gradient(135deg, #94a3b8, #475569);
-}
-
-.outline-toggle:focus-visible {
-  outline: 2px solid rgba(37, 99, 235, 0.4);
+#panel button:focus-visible,
+#toolbar button:focus-visible {
+  outline: 2px solid var(--accent-color);
   outline-offset: 2px;
+}
+
+#import-button {
+  width: 100%;
+}
+
+#mesh-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mesh-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  gap: 8px;
+}
+
+.mesh-row.selected {
+  border-color: var(--accent-color);
+  background: rgba(63, 126, 249, 0.2);
+}
+
+.mesh-row.dimmed {
+  opacity: 0.45;
+}
+
+.mesh-row .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mesh-row button {
+  cursor: pointer;
+  padding: 6px 8px;
+}
+
+.mesh-row .hide-button {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mesh-row .remove-button {
+  background: rgba(230, 92, 79, 0.18);
+  border-color: rgba(230, 92, 79, 0.4);
+}
+
+#toolbar {
+  position: absolute;
+  top: 16px;
+  left: calc(var(--panel-width) + 16px);
+  display: flex;
+  gap: 8px;
+  background: var(--toolbar-bg);
+  padding: 8px 12px;
+  border-radius: 999px;
+  box-shadow: 0 8px 30px rgba(15, 15, 15, 0.25);
+  pointer-events: auto;
+}
+
+#toolbar button.active {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+#inspector {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 12px;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.25);
+  color: #1e1e1e;
+  pointer-events: auto;
+}
+
+.inspector-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inspector-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+}
+
+.inspector-field input {
+  width: 72px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  font-size: 14px;
+  color: inherit;
+}
+
+canvas:focus {
+  outline: none;
 }
