@@ -47,6 +47,7 @@ export class SceneManager {
     this.pointer = new Vector2();
 
     this._animationFrame = null;
+    this.renderOverride = null;
   }
 
   /**
@@ -57,6 +58,14 @@ export class SceneManager {
     await this.#loadHDR();
     this.#startRendering();
     window.addEventListener('resize', () => this.#onResize());
+  }
+
+  /**
+   * Устанавливает пользовательскую функцию рендера, например для постобработки.
+   * @param {(() => void) | null} callback
+   */
+  setRenderOverride(callback) {
+    this.renderOverride = callback;
   }
 
   /**
@@ -95,7 +104,11 @@ export class SceneManager {
   #startRendering() {
     const renderLoop = () => {
       this.controls.update();
-      this.renderer.render(this.scene, this.camera);
+      if (this.renderOverride) {
+        this.renderOverride();
+      } else {
+        this.renderer.render(this.scene, this.camera);
+      }
       this._animationFrame = window.requestAnimationFrame(renderLoop);
     };
     renderLoop();

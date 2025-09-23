@@ -226,3 +226,37 @@ canvas#scene {
 .hidden-input {
   display: none;
 }
+
+.outline-toggle {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.18);
+  color: #1d4ed8;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  z-index: 9;
+}
+
+.outline-toggle:hover,
+.outline-toggle:focus {
+  background: rgba(37, 99, 235, 0.32);
+  box-shadow: 0 12px 36px rgba(37, 99, 235, 0.28);
+}
+
+.outline-toggle--active {
+  background: rgba(37, 99, 235, 0.42);
+  color: #ffffff;
+}
+
+.outline-toggle--inactive {
+  background: rgba(100, 116, 139, 0.2);
+  color: #475569;
+}

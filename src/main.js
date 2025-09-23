@@ -2,6 +2,7 @@ import { ImportManager } from './core/importManager.js';
 import { SceneManager } from './core/sceneManager.js';
 import { SelectionManager } from './core/selectionManager.js';
 import { TransformManager } from './core/transformManager.js';
+import { OutlineManager } from './core/outlineManager.js';
 import { Inspector } from './ui/inspector.js';
 import { Panel } from './ui/panel.js';
 import { Toolbar } from './ui/toolbar.js';
@@ -10,8 +11,11 @@ const canvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById(
 const panelElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-panel]'));
 const toolbarElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-toolbar]'));
 const inspectorElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-inspector]'));
+const outlineToggleButton = /** @type {HTMLButtonElement | null} */ (
+  document.querySelector('[data-outline-toggle]')
+);
 
-if (!canvas || !panelElement || !toolbarElement || !inspectorElement) {
+if (!canvas || !panelElement || !toolbarElement || !inspectorElement || !outlineToggleButton) {
   throw new Error('UI elements are missing in the document.');
 }
 
@@ -22,9 +26,26 @@ const panel = new Panel(panelElement);
 const toolbar = new Toolbar(toolbarElement);
 const inspector = new Inspector(inspectorElement, transformManager, selectionManager);
 const importManager = new ImportManager(sceneManager, selectionManager, panel);
+const outlineManager = new OutlineManager(sceneManager);
 
 let pointerDownPosition = null;
 let transformRecentlyActive = false;
+
+const updateOutlineToggle = (enabled) => {
+  outlineToggleButton.classList.toggle('outline-toggle--active', enabled);
+  outlineToggleButton.classList.toggle('outline-toggle--inactive', !enabled);
+  outlineToggleButton.textContent = enabled ? 'Outline: On' : 'Outline: Off';
+};
+
+outlineManager.addEventListener('toggle', (event) => {
+  updateOutlineToggle(event.detail.enabled);
+});
+
+outlineToggleButton.addEventListener('click', () => {
+  outlineManager.setEnabled(!outlineManager.enabled);
+});
+
+updateOutlineToggle(outlineManager.enabled);
 
 (async () => {
   try {
@@ -54,6 +75,7 @@ selectionManager.addEventListener('selectionchange', (event) => {
   const { selectedMeshes } = event.detail;
   transformManager.updateAnchorFromSelection(selectedMeshes);
   inspector.update(selectedMeshes, transformManager.mode);
+  outlineManager.setSelectedMeshes(selectedMeshes);
 });
 
 transformManager.addEventListener('transformchange', () => {
@@ -73,6 +95,7 @@ transformManager.addEventListener('modechange', (event) => {
 transformManager.addEventListener('draggingchange', (event) => {
   if (event.detail.dragging) {
     transformRecentlyActive = true;
+    outlineManager.setHoveredMesh(null);
   } else {
     window.setTimeout(() => {
       transformRecentlyActive = false;
@@ -107,4 +130,30 @@ canvas.addEventListener('pointerup', (event) => {
     }
   }
   selectionManager.selectFromScene(targetMesh, event.shiftKey);
+});
+
+canvas.addEventListener('pointermove', (event) => {
+  if (transformManager.isDragging) {
+    outlineManager.setHoveredMesh(null);
+    return;
+  }
+  if (event.buttons !== 0) {
+    outlineManager.setHoveredMesh(null);
+    return;
+  }
+  const ndc = sceneManager.getPointerNDC(event);
+  const intersections = sceneManager.intersectObjects(ndc);
+  let hovered = null;
+  for (const intersection of intersections) {
+    const mesh = selectionManager.findRegisteredMesh(intersection.object);
+    if (mesh) {
+      hovered = mesh;
+      break;
+    }
+  }
+  outlineManager.setHoveredMesh(hovered);
+});
+
+canvas.addEventListener('pointerleave', () => {
+  outlineManager.setHoveredMesh(null);
 });

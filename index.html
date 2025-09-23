@@ -15,7 +15,10 @@
           "GLTFLoader": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
           "DRACOLoader": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js",
           "FBXLoader": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FBXLoader.js",
-          "OBJLoader": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/OBJLoader.js"
+          "OBJLoader": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/OBJLoader.js",
+          "EffectComposer": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js",
+          "RenderPass": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/RenderPass.js",
+          "OutlinePass": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/OutlinePass.js"
         }
       }
     </script>
@@ -49,6 +52,9 @@
           <input type="number" step="0.01" class="inspector__input" data-axis="z" placeholder="Z" />
         </div>
       </div>
+      <button class="outline-toggle outline-toggle--active" type="button" data-outline-toggle>
+        Outline: On
+      </button>
     </div>
     <script type="module" src="./src/main.js"></script>
   </body>
