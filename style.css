@@ -273,6 +273,16 @@ canvas#scene {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.inspector__input::-webkit-outer-spin-button,
+.inspector__input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.inspector__input[type='number'] {
+  -moz-appearance: textfield;
+}
+
 .inspector__input:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
@@ -594,9 +604,30 @@ canvas#scene {
 }
 
 .material-slider__value {
-  min-width: 44px;
-  text-align: right;
+  width: 64px;
+  padding: 6px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  border-radius: 6px;
+  background: #ffffff;
   font-size: 13px;
   font-weight: 600;
   color: #1f2937;
+  text-align: right;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.material-slider__value:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  outline: none;
+}
+
+.material-slider__value::-webkit-outer-spin-button,
+.material-slider__value::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.material-slider__value[type='number'] {
+  -moz-appearance: textfield;
 }

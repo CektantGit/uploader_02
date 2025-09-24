@@ -232,7 +232,7 @@ export class MaterialPanel {
     this.normalTextureInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-normal-texture-input]'));
     this.normalTextureRemove = /** @type {HTMLButtonElement | null} */ (root.querySelector('[data-normal-texture-remove]'));
     this.normalStrengthInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-normal-strength]'));
-    this.normalStrengthValue = /** @type {HTMLElement | null} */ (root.querySelector('[data-normal-strength-value]'));
+    this.normalStrengthNumber = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-normal-strength-number]'));
     this.messageElement = /** @type {HTMLElement | null} */ (root.querySelector('[data-material-message]'));
     this.bodyElement = /** @type {HTMLElement | null} */ (root.querySelector('[data-material-body]'));
 
@@ -332,7 +332,7 @@ export class MaterialPanel {
       }
       this.normalStrengthInput.value = String(clamped);
     }
-    this.#updateNormalStrengthValue();
+    this.#updateNormalStrengthValue(true);
 
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
@@ -417,6 +417,33 @@ export class MaterialPanel {
     if (this.normalStrengthInput) {
       this.normalStrengthInput.addEventListener('input', () => {
         this.#applyNormalStrength();
+      });
+    }
+
+    if (this.normalStrengthNumber) {
+      const applyFromNumber = () => {
+        if (!this.normalStrengthInput || !this.normalStrengthNumber) {
+          return;
+        }
+        const raw = Number.parseFloat(this.normalStrengthNumber.value);
+        if (!Number.isFinite(raw)) {
+          if (document.activeElement !== this.normalStrengthNumber) {
+            this.#updateNormalStrengthValue(true);
+          }
+          return;
+        }
+        const clamped = Math.min(3, Math.max(0, raw));
+        this.normalStrengthInput.value = String(clamped);
+        this.#applyNormalStrength();
+      };
+
+      this.normalStrengthNumber.addEventListener('input', applyFromNumber);
+      this.normalStrengthNumber.addEventListener('change', applyFromNumber);
+      this.normalStrengthNumber.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          applyFromNumber();
+          this.normalStrengthNumber?.blur();
+        }
       });
     }
   }
@@ -634,16 +661,15 @@ export class MaterialPanel {
   /**
    * Обновляет текстовое представление силы нормал-карты.
    */
-  #updateNormalStrengthValue() {
-    if (!this.normalStrengthInput || !this.normalStrengthValue) {
+  #updateNormalStrengthValue(force = false) {
+    if (!this.normalStrengthInput) {
       return;
     }
     const value = Number.parseFloat(this.normalStrengthInput.value);
-    if (!Number.isFinite(value)) {
-      this.normalStrengthValue.textContent = '0.00';
-      return;
+    const normalized = Number.isFinite(value) ? value : 0;
+    if (this.normalStrengthNumber && (force || document.activeElement !== this.normalStrengthNumber)) {
+      this.normalStrengthNumber.value = normalized.toFixed(2);
     }
-    this.normalStrengthValue.textContent = value.toFixed(2);
   }
 
   /**
@@ -724,7 +750,7 @@ export class MaterialPanel {
       this.normalStrengthInput.value = '1';
     }
     this.activeMaterial.needsUpdate = true;
-    this.#updateNormalStrengthValue();
+    this.#updateNormalStrengthValue(true);
     this.#updateNormalPreview();
   }
 
@@ -737,6 +763,7 @@ export class MaterialPanel {
     }
     const value = Number.parseFloat(this.normalStrengthInput.value);
     if (!Number.isFinite(value)) {
+      this.#updateNormalStrengthValue();
       return;
     }
     const clamped = Math.min(3, Math.max(0, value));
@@ -810,7 +837,7 @@ export class MaterialPanel {
     if (this.normalStrengthInput) {
       this.normalStrengthInput.value = '1';
     }
-    this.#updateNormalStrengthValue();
+    this.#updateNormalStrengthValue(true);
     if (this.textureTarget) {
       this.textureTarget.classList.remove('texture-upload--no-preview');
     }

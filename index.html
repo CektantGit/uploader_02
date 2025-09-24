@@ -124,9 +124,10 @@
                   <div class="texture-upload__label">Upload</div>
                   <input class="hidden-input" type="file" accept="image/*" data-normal-texture-input />
                 </div>
-                <label class="material-slider">
-                  <span class="material-slider__label">Сила</span>
+                <div class="material-slider">
+                  <label class="material-slider__label" for="normal-strength-slider">Strength</label>
                   <input
+                    id="normal-strength-slider"
                     type="range"
                     min="0"
                     max="3"
@@ -135,8 +136,17 @@
                     class="material-slider__input"
                     data-normal-strength
                   />
-                  <span class="material-slider__value" data-normal-strength-value>1.00</span>
-                </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="3"
+                    step="0.05"
+                    value="1.00"
+                    class="material-slider__value"
+                    data-normal-strength-number
+                    aria-label="Normal map strength"
+                  />
+                </div>
               </div>
             </details>
           </div>
