@@ -220,6 +220,7 @@ export class MaterialPanel {
     this.textureLoader = new TextureLoader();
     this.modeInputs = /** @type {HTMLInputElement[]} */ (Array.from(root.querySelectorAll('[data-color-mode]')));
     this.colorPicker = /** @type {HTMLElement | null} */ (root.querySelector('[data-color-picker]'));
+    this.colorPreview = /** @type {HTMLElement | null} */ (root.querySelector('[data-color-preview]'));
     this.colorInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-color-input]'));
     this.texturePicker = /** @type {HTMLElement | null} */ (root.querySelector('[data-color-texture]'));
     this.textureTarget = /** @type {HTMLElement | null} */ (root.querySelector('[data-color-texture-target]'));
@@ -247,6 +248,11 @@ export class MaterialPanel {
     this.savedColorPreview = WHITE_PREVIEW;
     /** @type {string} */
     this.savedColorHex = '#ffffff';
+
+    if (this.colorInput) {
+      this.colorInput.value = this.savedColorHex;
+    }
+    this.#refreshColorPreview();
 
     if (this.textureImage) {
       this.textureImage.src = WHITE_PREVIEW;
@@ -304,6 +310,7 @@ export class MaterialPanel {
     if (this.colorInput) {
       this.colorInput.value = this.savedColorHex;
     }
+    this.#refreshColorPreview();
 
     if (this.colorMode === 'texture') {
       this.#ensureTextureColorNeutral();
@@ -520,6 +527,7 @@ export class MaterialPanel {
     if (this.colorInput) {
       this.colorInput.value = this.savedColorHex;
     }
+    this.#refreshColorPreview();
   }
 
   /**
@@ -545,6 +553,7 @@ export class MaterialPanel {
       this.colorInput.value = normalizedWithHash;
     }
     this.savedColorHex = normalizedWithHash;
+    this.#refreshColorPreview();
   }
 
   /**
@@ -566,6 +575,7 @@ export class MaterialPanel {
         this.activeMaterial.userData = this.activeMaterial.userData ?? {};
         this.activeMaterial.userData.__baseColorBackup = this.savedColorHex;
       }
+      this.#refreshColorPreview();
     } catch (error) {
       console.warn('Не удалось применить цвет', error);
     }
@@ -588,6 +598,18 @@ export class MaterialPanel {
       const hasPreview = Boolean(resolvedPreview);
       this.textureTarget.classList.toggle('texture-upload--no-preview', !hasPreview);
     }
+  }
+
+  /**
+   * Обновляет фон превью цвета.
+   */
+  #refreshColorPreview() {
+    if (!this.colorPreview) {
+      return;
+    }
+    const rawValue = this.colorInput?.value || this.savedColorHex || '#ffffff';
+    const normalized = rawValue.startsWith('#') ? rawValue : `#${rawValue}`;
+    this.colorPreview.style.backgroundColor = normalized;
   }
 
   /**
@@ -781,6 +803,7 @@ export class MaterialPanel {
     if (this.colorInput) {
       this.colorInput.value = this.savedColorHex;
     }
+    this.#refreshColorPreview();
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
     this.#updateNormalPreview();

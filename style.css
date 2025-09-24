@@ -441,17 +441,29 @@ canvas#scene {
   letter-spacing: 0.05em;
 }
 
+.material-field__preview {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #ffffff;
+  pointer-events: none;
+}
+
 .material-field__input {
+  position: absolute;
+  inset: 0;
   inline-size: 100%;
   block-size: 100%;
   padding: 0;
   border: none;
-  border-radius: 0;
+  border-radius: inherit;
   background: none;
   display: block;
   cursor: pointer;
   box-sizing: border-box;
   overflow: hidden;
+  opacity: 0;
+  z-index: 1;
   -webkit-appearance: none;
   appearance: none;
 }
