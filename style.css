@@ -417,12 +417,16 @@ canvas#scene {
   gap: 8px;
 }
 
+.material-color-picker {
+  align-items: flex-start;
+}
+
 .material-field {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
+  display: inline-block;
+  width: 100px;
+  height: 100px;
+  cursor: pointer;
 }
 
 .material-field__label {
@@ -434,8 +438,8 @@ canvas#scene {
 }
 
 .material-field__input {
-  width: 100px;
-  height: 100px;
+  inline-size: 100%;
+  block-size: 100%;
   padding: 0;
   border: 1px solid rgba(148, 163, 184, 0.3);
   border-radius: 10px;
