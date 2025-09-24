@@ -55,17 +55,28 @@ canvas#scene {
   height: 100%;
   pointer-events: none;
   z-index: 9;
+  background-color: rgba(15, 23, 42, 0.22);
+  filter: drop-shadow(0 10px 30px rgba(15, 23, 42, 0.18));
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
 }
 
 .panel--left::after {
   right: -18px;
-  background: linear-gradient(
+  mask-image: linear-gradient(
     90deg,
-    rgba(15, 23, 42, 0.16) 0%,
-    rgba(15, 23, 42, 0.08) 35%,
-    rgba(15, 23, 42, 0) 100%
+    rgba(0, 0, 0, 0.75) 0%,
+    rgba(0, 0, 0, 0.45) 40%,
+    rgba(0, 0, 0, 0) 100%
   );
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.75) 0%,
+    rgba(0, 0, 0, 0.45) 40%,
+    rgba(0, 0, 0, 0) 100%
+  );
 }
 
 .panel--right {
@@ -74,13 +85,18 @@ canvas#scene {
 
 .panel--right::after {
   left: -18px;
-  background: linear-gradient(
+  mask-image: linear-gradient(
     270deg,
-    rgba(15, 23, 42, 0.16) 0%,
-    rgba(15, 23, 42, 0.08) 35%,
-    rgba(15, 23, 42, 0) 100%
+    rgba(0, 0, 0, 0.75) 0%,
+    rgba(0, 0, 0, 0.45) 40%,
+    rgba(0, 0, 0, 0) 100%
   );
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  -webkit-mask-image: linear-gradient(
+    270deg,
+    rgba(0, 0, 0, 0.75) 0%,
+    rgba(0, 0, 0, 0.45) 40%,
+    rgba(0, 0, 0, 0) 100%
+  );
 }
 
 .panel__import {
