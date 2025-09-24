@@ -431,6 +431,27 @@ canvas#scene {
   align-items: flex-start;
 }
 
+.material-orm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.material-orm__channel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.material-orm__label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+}
+
 .material-field {
   position: relative;
   display: inline-flex;
@@ -576,6 +597,10 @@ canvas#scene {
   opacity: 1;
 }
 
+.texture-upload--readonly {
+  cursor: default;
+}
+
 .texture-upload--no-preview .texture-upload__image {
   opacity: 0;
 }
@@ -589,6 +614,21 @@ canvas#scene {
   grid-template-columns: auto 1fr auto;
   gap: 8px;
   align-items: center;
+}
+
+.material-slider--stacked {
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(3, auto);
+  gap: 6px;
+  align-items: stretch;
+}
+
+.material-slider--stacked .material-slider__label {
+  justify-self: flex-start;
+}
+
+.material-slider--stacked .material-slider__value {
+  justify-self: flex-end;
 }
 
 .material-slider__label {

@@ -14,6 +14,41 @@ const NEUTRAL_NORMAL_PREVIEW = createSolidColorDataUrl(100, 100, [128, 128, 255,
 let neutralNormalTexture = null;
 
 /**
+ * @typedef {'packed' | 'separate' | 'scalar'} OrmMode
+ */
+
+/**
+ * @typedef {'ao' | 'metalness' | 'roughness'} OrmChannelKey
+ */
+
+/**
+ * @typedef {'separate-slider' | 'separate-number' | 'scalar-slider' | 'scalar-number' | null} OrmScalarSource
+ */
+
+const ORM_CHANNELS = [
+  /** @type {{ key: OrmChannelKey; mapProp: 'aoMap' | 'metalnessMap' | 'roughnessMap'; scalarProp: 'aoMapIntensity' | 'metalness' | 'roughness'; defaultScalar: number; }} */ (
+    {
+      key: 'ao',
+      mapProp: 'aoMap',
+      scalarProp: 'aoMapIntensity',
+      defaultScalar: 1,
+    }
+  ),
+  {
+    key: 'metalness',
+    mapProp: 'metalnessMap',
+    scalarProp: 'metalness',
+    defaultScalar: 0,
+  },
+  {
+    key: 'roughness',
+    mapProp: 'roughnessMap',
+    scalarProp: 'roughness',
+    defaultScalar: 1,
+  },
+];
+
+/**
  * Создает dataURL квадратного изображения заданного цвета.
  * @param {number} width
  * @param {number} height
@@ -32,6 +67,35 @@ function createSolidColorDataUrl(width, height, rgba) {
   context.fillStyle = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
   context.fillRect(0, 0, width, height);
   return canvas.toDataURL('image/png');
+}
+
+/**
+ * Ограничивает значение в диапазоне [0, 1].
+ * @param {number} value
+ * @returns {number}
+ */
+function clamp01(value) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  if (value < 0) {
+    return 0;
+  }
+  if (value > 1) {
+    return 1;
+  }
+  return value;
+}
+
+/**
+ * Возвращает dataURL для превью скалярного значения.
+ * @param {number} value
+ * @returns {string}
+ */
+function scalarToPreview(value) {
+  const clamped = clamp01(value);
+  const level = Math.round(clamped * 255);
+  return createSolidColorDataUrl(100, 100, [level, level, level, 255]);
 }
 
 /**
@@ -233,8 +297,38 @@ export class MaterialPanel {
     this.normalTextureRemove = /** @type {HTMLButtonElement | null} */ (root.querySelector('[data-normal-texture-remove]'));
     this.normalStrengthInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-normal-strength]'));
     this.normalStrengthNumber = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-normal-strength-number]'));
+    this.ormModeInputs = /** @type {HTMLInputElement[]} */ (Array.from(root.querySelectorAll('[data-orm-mode]')));
+    this.ormPackedContainer = /** @type {HTMLElement | null} */ (root.querySelector('[data-orm-packed]'));
+    this.ormPackedTarget = /** @type {HTMLElement | null} */ (root.querySelector('[data-orm-packed-target]'));
+    this.ormPackedImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-orm-packed-image]'));
+    this.ormPackedInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-orm-packed-input]'));
+    this.ormPackedRemove = /** @type {HTMLButtonElement | null} */ (root.querySelector('[data-orm-packed-remove]'));
+    this.ormSeparateContainer = /** @type {HTMLElement | null} */ (root.querySelector('[data-orm-separate]'));
+    this.ormScalarContainer = /** @type {HTMLElement | null} */ (root.querySelector('[data-orm-scalar]'));
     this.messageElement = /** @type {HTMLElement | null} */ (root.querySelector('[data-material-message]'));
     this.bodyElement = /** @type {HTMLElement | null} */ (root.querySelector('[data-material-body]'));
+
+    /** @type {Record<OrmChannelKey, { config: typeof ORM_CHANNELS[number]; separate: { target: HTMLElement | null; image: HTMLImageElement | null; input: HTMLInputElement | null; remove: HTMLButtonElement | null; sliderContainer: HTMLElement | null; slider: HTMLInputElement | null; number: HTMLInputElement | null; }; scalar: { image: HTMLImageElement | null; slider: HTMLInputElement | null; number: HTMLInputElement | null; }; }>} */
+    this.ormChannels = /** @type {any} */ ({});
+    for (const channel of ORM_CHANNELS) {
+      this.ormChannels[channel.key] = {
+        config: channel,
+        separate: {
+          target: /** @type {HTMLElement | null} */ (root.querySelector(`[data-orm-${channel.key}-target]`)),
+          image: /** @type {HTMLImageElement | null} */ (root.querySelector(`[data-orm-${channel.key}-image]`)),
+          input: /** @type {HTMLInputElement | null} */ (root.querySelector(`[data-orm-${channel.key}-input]`)),
+          remove: /** @type {HTMLButtonElement | null} */ (root.querySelector(`[data-orm-${channel.key}-remove]`)),
+          sliderContainer: /** @type {HTMLElement | null} */ (root.querySelector(`[data-orm-${channel.key}-scalar]`)),
+          slider: /** @type {HTMLInputElement | null} */ (root.querySelector(`[data-orm-${channel.key}-slider]`)),
+          number: /** @type {HTMLInputElement | null} */ (root.querySelector(`[data-orm-${channel.key}-number]`)),
+        },
+        scalar: {
+          image: /** @type {HTMLImageElement | null} */ (root.querySelector(`[data-orm-scalar-${channel.key}-image]`)),
+          slider: /** @type {HTMLInputElement | null} */ (root.querySelector(`[data-orm-scalar-${channel.key}-slider]`)),
+          number: /** @type {HTMLInputElement | null} */ (root.querySelector(`[data-orm-scalar-${channel.key}-number]`)),
+        },
+      };
+    }
 
     /** @type {'color' | 'texture'} */
     this.colorMode = 'color';
@@ -248,6 +342,30 @@ export class MaterialPanel {
     this.savedColorPreview = WHITE_PREVIEW;
     /** @type {string} */
     this.savedColorHex = '#ffffff';
+    /** @type {OrmMode} */
+    this.ormMode = 'scalar';
+    /** @type {import('three').Texture | null} */
+    this.ormPackedTexture = null;
+    /** @type {string} */
+    this.ormPackedPreview = WHITE_PREVIEW;
+    /** @type {Record<OrmChannelKey, { texture: import('three').Texture | null; texturePreview: string; scalar: number }>} */
+    this.ormChannelState = {
+      ao: {
+        texture: null,
+        texturePreview: WHITE_PREVIEW,
+        scalar: 1,
+      },
+      metalness: {
+        texture: null,
+        texturePreview: WHITE_PREVIEW,
+        scalar: 0,
+      },
+      roughness: {
+        texture: null,
+        texturePreview: WHITE_PREVIEW,
+        scalar: 1,
+      },
+    };
 
     if (this.colorInput) {
       this.colorInput.value = this.savedColorHex;
@@ -267,8 +385,44 @@ export class MaterialPanel {
       this.normalTextureTarget.classList.remove('texture-upload--no-preview');
     }
 
+    if (this.ormPackedImage) {
+      this.ormPackedImage.src = this.ormPackedPreview;
+    }
+    if (this.ormPackedTarget) {
+      this.ormPackedTarget.classList.remove('texture-upload--no-preview');
+    }
+    for (const channel of ORM_CHANNELS) {
+      const preview = scalarToPreview(channel.defaultScalar);
+      const state = this.ormChannelState[channel.key];
+      state.scalar = channel.defaultScalar;
+      state.texturePreview = preview;
+      const channelRefs = this.ormChannels[channel.key];
+      if (channelRefs.separate.image) {
+        channelRefs.separate.image.src = preview;
+      }
+      if (channelRefs.separate.target) {
+        channelRefs.separate.target.classList.remove('texture-upload--no-preview');
+      }
+      if (channelRefs.separate.slider) {
+        channelRefs.separate.slider.value = String(channel.defaultScalar);
+      }
+      if (channelRefs.separate.number) {
+        channelRefs.separate.number.value = channel.defaultScalar.toFixed(2);
+      }
+      if (channelRefs.scalar.image) {
+        channelRefs.scalar.image.src = preview;
+      }
+      if (channelRefs.scalar.slider) {
+        channelRefs.scalar.slider.value = String(channel.defaultScalar);
+      }
+      if (channelRefs.scalar.number) {
+        channelRefs.scalar.number.value = channel.defaultScalar.toFixed(2);
+      }
+    }
+
     this.#bindEvents();
     this.#updateColorModeView();
+    this.#updateOrmModeView();
     this.#showMessage('Выберите один меш для настройки материала.');
   }
 
@@ -297,6 +451,8 @@ export class MaterialPanel {
     this.savedColorPreview = getTexturePreview(material.map) ?? WHITE_PREVIEW;
     this.colorMode = material.map ? 'texture' : 'color';
     this.#syncModeInputs();
+
+    this.#syncOrmFromMaterial(material);
 
     const baseColorBackup =
       typeof material.userData?.__baseColorBackup === 'string'
@@ -337,6 +493,7 @@ export class MaterialPanel {
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
     this.#updateNormalPreview();
+    this.#updateOrmModeView();
     this.#showBody();
   }
 
@@ -446,6 +603,144 @@ export class MaterialPanel {
         }
       });
     }
+
+    this.ormModeInputs.forEach((input) => {
+      input.addEventListener('change', () => {
+        if (!input.checked) {
+          return;
+        }
+        const value = input.value;
+        const mode = value === 'separate' ? 'separate' : value === 'scalar' ? 'scalar' : 'packed';
+        this.#setOrmMode(mode);
+      });
+    });
+
+    if (this.ormPackedTarget && this.ormPackedInput) {
+      this.ormPackedTarget.addEventListener('click', (event) => {
+        if ((event.target instanceof HTMLElement) && event.target.closest('[data-orm-packed-remove]')) {
+          return;
+        }
+        if (this.ormMode !== 'packed') {
+          return;
+        }
+        this.ormPackedInput.click();
+      });
+    }
+
+    if (this.ormPackedInput) {
+      this.ormPackedInput.addEventListener('change', async () => {
+        const file = this.ormPackedInput?.files?.[0];
+        if (!file) {
+          return;
+        }
+        await this.#handlePackedTextureFile(file);
+        this.ormPackedInput.value = '';
+      });
+    }
+
+    if (this.ormPackedRemove) {
+      this.ormPackedRemove.addEventListener('click', (event) => {
+        event.stopPropagation();
+        this.#handleRemovePackedTexture();
+      });
+    }
+
+    for (const channel of ORM_CHANNELS) {
+      const refs = this.ormChannels[channel.key];
+      if (refs.separate.target && refs.separate.input) {
+        refs.separate.target.addEventListener('click', (event) => {
+          if ((event.target instanceof HTMLElement) && event.target.closest(`[data-orm-${channel.key}-remove]`)) {
+            return;
+          }
+          if (this.ormMode !== 'separate') {
+            return;
+          }
+          refs.separate.input?.click();
+        });
+      }
+
+      if (refs.separate.input) {
+        refs.separate.input.addEventListener('change', async () => {
+          const file = refs.separate.input?.files?.[0];
+          if (!file) {
+            return;
+          }
+          await this.#handleSeparateTextureFile(channel.key, file);
+          refs.separate.input.value = '';
+        });
+      }
+
+      if (refs.separate.remove) {
+        refs.separate.remove.addEventListener('click', (event) => {
+          event.stopPropagation();
+          this.#handleRemoveSeparateTexture(channel.key);
+        });
+      }
+
+      if (refs.separate.slider) {
+        refs.separate.slider.addEventListener('input', () => {
+          const raw = Number.parseFloat(refs.separate.slider?.value ?? '0');
+          this.#setChannelScalar(channel.key, raw, 'separate-slider');
+        });
+      }
+
+      if (refs.separate.number) {
+        const applySeparateNumber = () => {
+          if (!refs.separate.number) {
+            return;
+          }
+          const raw = Number.parseFloat(refs.separate.number.value);
+          if (!Number.isFinite(raw)) {
+            if (document.activeElement !== refs.separate.number) {
+              this.#syncChannelInputs(channel.key, 'separate-number');
+            }
+            return;
+          }
+          this.#setChannelScalar(channel.key, raw, 'separate-number');
+        };
+
+        refs.separate.number.addEventListener('input', applySeparateNumber);
+        refs.separate.number.addEventListener('change', applySeparateNumber);
+        refs.separate.number.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            applySeparateNumber();
+            refs.separate.number?.blur();
+          }
+        });
+      }
+
+      if (refs.scalar.slider) {
+        refs.scalar.slider.addEventListener('input', () => {
+          const raw = Number.parseFloat(refs.scalar.slider?.value ?? '0');
+          this.#setChannelScalar(channel.key, raw, 'scalar-slider');
+        });
+      }
+
+      if (refs.scalar.number) {
+        const applyScalarNumber = () => {
+          if (!refs.scalar.number) {
+            return;
+          }
+          const raw = Number.parseFloat(refs.scalar.number.value);
+          if (!Number.isFinite(raw)) {
+            if (document.activeElement !== refs.scalar.number) {
+              this.#syncChannelInputs(channel.key, 'scalar-number');
+            }
+            return;
+          }
+          this.#setChannelScalar(channel.key, raw, 'scalar-number');
+        };
+
+        refs.scalar.number.addEventListener('input', applyScalarNumber);
+        refs.scalar.number.addEventListener('change', applyScalarNumber);
+        refs.scalar.number.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            applyScalarNumber();
+            refs.scalar.number?.blur();
+          }
+        });
+      }
+    }
   }
 
   /**
@@ -529,6 +824,304 @@ export class MaterialPanel {
     this.modeInputs.forEach((input) => {
       input.checked = input.value === this.colorMode;
     });
+  }
+
+  /**
+   * Синхронизирует состояние ORM с текущим материалом.
+   * @param {(import('three').Material & { aoMap?: import('three').Texture | null; metalnessMap?: import('three').Texture | null; roughnessMap?: import('three').Texture | null; aoMapIntensity?: number; metalness?: number; roughness?: number })} material
+   */
+  #syncOrmFromMaterial(material) {
+    const aoMap = /** @type {import('three').Texture | null} */ (material.aoMap ?? null);
+    const metalnessMap = /** @type {import('three').Texture | null} */ (material.metalnessMap ?? null);
+    const roughnessMap = /** @type {import('three').Texture | null} */ (material.roughnessMap ?? null);
+
+    const aoIntensity = clamp01(typeof material.aoMapIntensity === 'number' ? material.aoMapIntensity : 1);
+    const metalness = clamp01(typeof material.metalness === 'number' ? material.metalness : 0);
+    const roughness = clamp01(typeof material.roughness === 'number' ? material.roughness : 1);
+
+    let needsUpdate = false;
+    if (typeof material.aoMapIntensity !== 'number' || material.aoMapIntensity !== aoIntensity) {
+      material.aoMapIntensity = aoIntensity;
+      needsUpdate = true;
+    }
+    if (typeof material.metalness !== 'number' || material.metalness !== metalness) {
+      material.metalness = metalness;
+      needsUpdate = true;
+    }
+    if (typeof material.roughness !== 'number' || material.roughness !== roughness) {
+      material.roughness = roughness;
+      needsUpdate = true;
+    }
+
+    this.ormChannelState.ao.scalar = aoIntensity;
+    this.ormChannelState.metalness.scalar = metalness;
+    this.ormChannelState.roughness.scalar = roughness;
+
+    this.ormChannelState.ao.texture = aoMap ?? null;
+    this.ormChannelState.metalness.texture = metalnessMap ?? null;
+    this.ormChannelState.roughness.texture = roughnessMap ?? null;
+
+    this.ormChannelState.ao.texturePreview = aoMap
+      ? getTexturePreview(aoMap) ?? this.ormChannelState.ao.texturePreview
+      : WHITE_PREVIEW;
+    this.ormChannelState.metalness.texturePreview = metalnessMap
+      ? getTexturePreview(metalnessMap) ?? this.ormChannelState.metalness.texturePreview
+      : WHITE_PREVIEW;
+    this.ormChannelState.roughness.texturePreview = roughnessMap
+      ? getTexturePreview(roughnessMap) ?? this.ormChannelState.roughness.texturePreview
+      : WHITE_PREVIEW;
+
+    const hasPackedTexture = Boolean(aoMap && metalnessMap && roughnessMap && aoMap === metalnessMap && aoMap === roughnessMap);
+    if (hasPackedTexture) {
+      this.ormPackedTexture = aoMap;
+      const preview = this.ormChannelState.ao.texturePreview || getTexturePreview(aoMap) || WHITE_PREVIEW;
+      this.ormPackedPreview = preview || WHITE_PREVIEW;
+      this.ormMode = 'packed';
+    } else {
+      this.ormPackedTexture = null;
+      this.ormPackedPreview = WHITE_PREVIEW;
+      this.ormMode = aoMap || metalnessMap || roughnessMap ? 'separate' : 'scalar';
+    }
+
+    for (const channel of ORM_CHANNELS) {
+      this.#syncChannelInputs(channel.key, null);
+    }
+
+    if (needsUpdate && this.activeMaterial) {
+      this.activeMaterial.needsUpdate = true;
+    }
+  }
+
+  /**
+   * Устанавливает режим управления каналами ORM.
+   * @param {OrmMode} mode
+   */
+  #setOrmMode(mode) {
+    if (this.ormMode === mode) {
+      return;
+    }
+    this.ormMode = mode;
+    if (this.activeMaterial) {
+      if (mode === 'packed') {
+        if (!this.ormPackedTexture) {
+          const fallbackTexture =
+            this.ormChannelState.ao.texture ??
+            this.ormChannelState.metalness.texture ??
+            this.ormChannelState.roughness.texture ??
+            null;
+          if (fallbackTexture) {
+            this.ormPackedTexture = fallbackTexture;
+            const preview = fallbackTexture.userData?.__previewUrl ?? getTexturePreview(fallbackTexture);
+            if (preview) {
+              this.ormPackedPreview = preview;
+            }
+          }
+        }
+        this.#applyPackedTexture();
+      } else if (mode === 'separate') {
+        this.#applySeparateTextures();
+      } else {
+        this.activeMaterial.aoMap = null;
+        this.activeMaterial.metalnessMap = null;
+        this.activeMaterial.roughnessMap = null;
+        this.activeMaterial.needsUpdate = true;
+      }
+      for (const channel of ORM_CHANNELS) {
+        this.#applyChannelScalar(channel.key);
+      }
+    }
+    this.#updateOrmModeView();
+  }
+
+  /**
+   * Обновляет отображение секции ORM.
+   */
+  #updateOrmModeView() {
+    this.#syncOrmModeInputs();
+    if (this.ormPackedContainer) {
+      this.ormPackedContainer.classList.toggle('is-hidden', this.ormMode !== 'packed');
+    }
+    if (this.ormSeparateContainer) {
+      this.ormSeparateContainer.classList.toggle('is-hidden', this.ormMode !== 'separate');
+    }
+    if (this.ormScalarContainer) {
+      this.ormScalarContainer.classList.toggle('is-hidden', this.ormMode !== 'scalar');
+    }
+    if (this.ormPackedInput) {
+      this.ormPackedInput.disabled = this.ormMode !== 'packed';
+    }
+    if (this.ormPackedRemove) {
+      this.ormPackedRemove.disabled = this.ormMode !== 'packed' || !this.ormPackedTexture;
+    }
+    this.#updatePackedPreview();
+
+    for (const channel of ORM_CHANNELS) {
+      const refs = this.ormChannels[channel.key];
+      const state = this.ormChannelState[channel.key];
+      const showSlider = this.ormMode === 'separate' && !state.texture;
+      if (refs.separate.sliderContainer) {
+        refs.separate.sliderContainer.classList.toggle('is-hidden', !showSlider);
+      }
+      if (refs.separate.input) {
+        refs.separate.input.disabled = this.ormMode !== 'separate';
+      }
+      if (refs.separate.remove) {
+        refs.separate.remove.disabled = this.ormMode !== 'separate' || !state.texture;
+      }
+      if (refs.scalar.slider) {
+        refs.scalar.slider.disabled = this.ormMode !== 'scalar';
+      }
+      if (refs.scalar.number) {
+        refs.scalar.number.disabled = this.ormMode !== 'scalar';
+      }
+      this.#syncChannelInputs(channel.key, null);
+      this.#updateChannelPreviews(channel.key);
+    }
+  }
+
+  /**
+   * Синхронизирует radio-инпуты ORM.
+   */
+  #syncOrmModeInputs() {
+    this.ormModeInputs.forEach((input) => {
+      input.checked = input.value === this.ormMode;
+    });
+  }
+
+  /**
+   * Обновляет превью общей ORM-текстуры.
+   */
+  #updatePackedPreview() {
+    if (!this.ormPackedImage) {
+      return;
+    }
+    if (this.ormPackedTexture) {
+      const preview = this.ormPackedTexture.userData?.__previewUrl ?? getTexturePreview(this.ormPackedTexture);
+      if (preview) {
+        this.ormPackedPreview = preview;
+      }
+      this.ormPackedImage.src = this.ormPackedPreview;
+    } else {
+      this.ormPackedPreview = WHITE_PREVIEW;
+      this.ormPackedImage.src = WHITE_PREVIEW;
+    }
+    if (this.ormPackedTarget) {
+      this.ormPackedTarget.classList.toggle('texture-upload--no-preview', !this.ormPackedTexture);
+    }
+  }
+
+  /**
+   * Обновляет превью каналов и отображение слайдеров.
+   * @param {OrmChannelKey} channelKey
+   */
+  #updateChannelPreviews(channelKey) {
+    const state = this.ormChannelState[channelKey];
+    const refs = this.ormChannels[channelKey];
+    if (state.texture) {
+      const preview = state.texture.userData?.__previewUrl ?? getTexturePreview(state.texture);
+      if (preview) {
+        state.texturePreview = preview;
+      }
+    } else {
+      state.texturePreview = WHITE_PREVIEW;
+    }
+    const scalarPreview = scalarToPreview(state.scalar);
+    const useTexture = this.ormMode === 'separate' && Boolean(state.texture);
+    const separatePreview = useTexture ? state.texturePreview : scalarPreview;
+    if (refs.separate.image) {
+      refs.separate.image.src = separatePreview || WHITE_PREVIEW;
+    }
+    if (refs.separate.target) {
+      const showPlaceholder = !separatePreview;
+      refs.separate.target.classList.toggle('texture-upload--no-preview', showPlaceholder);
+    }
+    if (refs.scalar.image) {
+      refs.scalar.image.src = scalarPreview;
+    }
+  }
+
+  /**
+   * Синхронизирует значения слайдеров и числовых полей канала.
+   * @param {OrmChannelKey} channelKey
+   * @param {OrmScalarSource} source
+   */
+  #syncChannelInputs(channelKey, source) {
+    const state = this.ormChannelState[channelKey];
+    const refs = this.ormChannels[channelKey];
+    const sliderValue = state.scalar.toString();
+    const numberValue = state.scalar.toFixed(2);
+    if (refs.separate.slider && source !== 'separate-slider') {
+      refs.separate.slider.value = sliderValue;
+    }
+    if (refs.separate.number && source !== 'separate-number') {
+      refs.separate.number.value = numberValue;
+    }
+    if (refs.scalar.slider && source !== 'scalar-slider') {
+      refs.scalar.slider.value = sliderValue;
+    }
+    if (refs.scalar.number && source !== 'scalar-number') {
+      refs.scalar.number.value = numberValue;
+    }
+  }
+
+  /**
+   * Устанавливает скалярное значение канала.
+   * @param {OrmChannelKey} channelKey
+   * @param {number} value
+   * @param {OrmScalarSource} source
+   */
+  #setChannelScalar(channelKey, value, source) {
+    if (!Number.isFinite(value)) {
+      this.#syncChannelInputs(channelKey, source);
+      return;
+    }
+    const clamped = clamp01(value);
+    this.ormChannelState[channelKey].scalar = clamped;
+    this.#syncChannelInputs(channelKey, source);
+    this.#updateChannelPreviews(channelKey);
+    this.#applyChannelScalar(channelKey);
+  }
+
+  /**
+   * Применяет скалярное значение канала к материалу.
+   * @param {OrmChannelKey} channelKey
+   */
+  #applyChannelScalar(channelKey) {
+    if (!this.activeMaterial) {
+      return;
+    }
+    const value = this.ormChannelState[channelKey].scalar;
+    const { scalarProp } = this.ormChannels[channelKey].config;
+    this.activeMaterial[scalarProp] = value;
+    this.activeMaterial.needsUpdate = true;
+  }
+
+  /**
+   * Применяет объединенную ORM-текстуру к материалу.
+   */
+  #applyPackedTexture() {
+    if (!this.activeMaterial) {
+      return;
+    }
+    const texture = this.ormPackedTexture ?? null;
+    this.activeMaterial.aoMap = texture;
+    this.activeMaterial.metalnessMap = texture;
+    this.activeMaterial.roughnessMap = texture;
+    this.activeMaterial.needsUpdate = true;
+  }
+
+  /**
+   * Применяет раздельные текстуры каналов к материалу.
+   */
+  #applySeparateTextures() {
+    if (!this.activeMaterial) {
+      return;
+    }
+    for (const channel of ORM_CHANNELS) {
+      const texture = this.ormChannelState[channel.key].texture ?? null;
+      this.activeMaterial[channel.mapProp] = texture;
+    }
+    this.activeMaterial.needsUpdate = true;
   }
 
   /**
@@ -714,6 +1307,83 @@ export class MaterialPanel {
   }
 
   /**
+   * Обрабатывает загрузку объединенной ORM-текстуры.
+   * @param {File} file
+   */
+  async #handlePackedTextureFile(file) {
+    if (!this.activeMaterial) {
+      return;
+    }
+    try {
+      const texture = await this.#loadTexture(file, LinearSRGBColorSpace);
+      this.ormPackedTexture = texture;
+      this.ormPackedPreview = getTexturePreview(texture) ?? WHITE_PREVIEW;
+      this.ormMode = 'packed';
+      this.#applyPackedTexture();
+      this.#updateOrmModeView();
+    } catch (error) {
+      console.error('Не удалось загрузить ORM-текстуру', error);
+    }
+  }
+
+  /**
+   * Удаляет объединенную ORM-текстуру.
+   */
+  #handleRemovePackedTexture() {
+    if (this.activeMaterial && this.ormMode === 'packed') {
+      this.activeMaterial.aoMap = null;
+      this.activeMaterial.metalnessMap = null;
+      this.activeMaterial.roughnessMap = null;
+      this.activeMaterial.needsUpdate = true;
+    }
+    this.ormPackedTexture = null;
+    this.ormPackedPreview = WHITE_PREVIEW;
+    this.#updateOrmModeView();
+  }
+
+  /**
+   * Обрабатывает загрузку текстуры отдельного канала ORM.
+   * @param {OrmChannelKey} channelKey
+   * @param {File} file
+   */
+  async #handleSeparateTextureFile(channelKey, file) {
+    if (!this.activeMaterial) {
+      return;
+    }
+    try {
+      const texture = await this.#loadTexture(file, LinearSRGBColorSpace);
+      this.ormChannelState[channelKey].texture = texture;
+      this.ormChannelState[channelKey].texturePreview = getTexturePreview(texture) ?? WHITE_PREVIEW;
+      if (this.ormMode !== 'separate') {
+        this.ormMode = 'separate';
+      }
+      if (this.ormMode === 'separate') {
+        const { mapProp } = this.ormChannels[channelKey].config;
+        this.activeMaterial[mapProp] = texture;
+        this.activeMaterial.needsUpdate = true;
+      }
+      this.#updateOrmModeView();
+    } catch (error) {
+      console.error(`Не удалось загрузить текстуру канала ${channelKey}`, error);
+    }
+  }
+
+  /**
+   * Удаляет текстуру отдельного канала ORM.
+   * @param {OrmChannelKey} channelKey
+   */
+  #handleRemoveSeparateTexture(channelKey) {
+    if (this.activeMaterial && this.ormMode === 'separate') {
+      const { mapProp } = this.ormChannels[channelKey].config;
+      this.activeMaterial[mapProp] = null;
+      this.activeMaterial.needsUpdate = true;
+    }
+    this.ormChannelState[channelKey].texture = null;
+    this.ormChannelState[channelKey].texturePreview = WHITE_PREVIEW;
+    this.#updateOrmModeView();
+  }
+
+  /**
    * Удаляет базовую текстуру.
    */
   #handleRemoveBaseTexture() {
@@ -844,6 +1514,18 @@ export class MaterialPanel {
     if (this.normalTextureTarget) {
       this.normalTextureTarget.classList.remove('texture-upload--no-preview');
     }
+    this.ormMode = 'scalar';
+    this.ormPackedTexture = null;
+    this.ormPackedPreview = WHITE_PREVIEW;
+    for (const channel of ORM_CHANNELS) {
+      const preview = scalarToPreview(channel.defaultScalar);
+      const state = this.ormChannelState[channel.key];
+      state.texture = null;
+      state.texturePreview = preview;
+      state.scalar = channel.defaultScalar;
+      this.#syncChannelInputs(channel.key, null);
+    }
+    this.#updateOrmModeView();
   }
 
   /**
