@@ -504,7 +504,7 @@ export class MaterialPanel {
     let preview = WHITE_PREVIEW;
     let isUploaded = false;
     if (map) {
-      preview = getTexturePreview(map) ?? WHITE_PREVIEW;
+      preview = map.userData?.__previewUrl ?? getTexturePreview(map) ?? WHITE_PREVIEW;
       isUploaded = Boolean(map.userData?.__isUploaded);
     } else if (this.savedColorTexture) {
       preview = this.savedColorPreview ?? WHITE_PREVIEW;
@@ -526,7 +526,9 @@ export class MaterialPanel {
       return;
     }
     const normalMap = this.activeMaterial?.normalMap ?? null;
-    const preview = normalMap ? getTexturePreview(normalMap) : null;
+    const preview = normalMap
+      ? normalMap.userData?.__previewUrl ?? getTexturePreview(normalMap)
+      : null;
     this.normalTextureImage.src = preview ?? NEUTRAL_NORMAL_PREVIEW;
     if (this.normalTextureTarget) {
       const isUploaded = Boolean(normalMap?.userData?.__isUploaded);
@@ -660,18 +662,38 @@ export class MaterialPanel {
    * @returns {Promise<import('three').Texture>}
    */
   async #loadTexture(file, colorSpace) {
-    const url = URL.createObjectURL(file);
-    try {
-      const texture = await this.textureLoader.loadAsync(url);
-      texture.colorSpace = colorSpace;
-      texture.name = file.name;
-      texture.needsUpdate = true;
-      texture.userData = texture.userData ?? {};
-      texture.userData.__isUploaded = true;
-      return texture;
-    } finally {
-      URL.revokeObjectURL(url);
-    }
+    const dataUrl = await this.#readFileAsDataUrl(file);
+    const texture = await this.textureLoader.loadAsync(dataUrl);
+    texture.colorSpace = colorSpace;
+    texture.name = file.name;
+    texture.needsUpdate = true;
+    texture.userData = texture.userData ?? {};
+    texture.userData.__isUploaded = true;
+    texture.userData.__previewUrl = dataUrl;
+    return texture;
+  }
+
+  /**
+   * Считывает файл как dataURL.
+   * @param {File} file
+   * @returns {Promise<string>}
+   */
+  #readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : null;
+        if (result) {
+          resolve(result);
+        } else {
+          reject(new Error('Не удалось прочитать файл как dataURL'));
+        }
+      };
+      reader.onerror = () => {
+        reject(reader.error ?? new Error('Ошибка чтения файла'));
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   /**
