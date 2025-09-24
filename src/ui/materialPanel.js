@@ -26,12 +26,13 @@ let neutralNormalTexture = null;
  */
 
 const ORM_CHANNELS = [
-  /** @type {{ key: OrmChannelKey; mapProp: 'aoMap' | 'metalnessMap' | 'roughnessMap'; scalarProp: 'aoMapIntensity' | 'metalness' | 'roughness'; defaultScalar: number; }} */ (
+  /** @type {{ key: OrmChannelKey; mapProp: 'aoMap' | 'metalnessMap' | 'roughnessMap'; scalarProp: 'aoMapIntensity' | 'metalness' | 'roughness'; defaultScalar: number; textureScalar: number; }} */ (
     {
       key: 'ao',
       mapProp: 'aoMap',
       scalarProp: 'aoMapIntensity',
       defaultScalar: 1,
+      textureScalar: 1,
     }
   ),
   {
@@ -39,12 +40,14 @@ const ORM_CHANNELS = [
     mapProp: 'metalnessMap',
     scalarProp: 'metalness',
     defaultScalar: 0,
+    textureScalar: 1,
   },
   {
     key: 'roughness',
     mapProp: 'roughnessMap',
     scalarProp: 'roughness',
     defaultScalar: 1,
+    textureScalar: 1,
   },
 ];
 
@@ -908,26 +911,13 @@ export class MaterialPanel {
    * Устанавливает режим управления каналами ORM.
    * @param {OrmMode} mode
    */
-  #setOrmMode(mode) {
-    if (this.ormMode === mode) {
+  #setOrmMode(mode, options = { force: false }) {
+    const { force = false } = options;
+    if (!force && this.ormMode === mode) {
       return;
     }
     this.ormMode = mode;
-    if (this.activeMaterial) {
-      if (mode === 'packed') {
-        this.#applyPackedTexture();
-      } else if (mode === 'separate') {
-        this.#applySeparateTextures();
-      } else {
-        this.activeMaterial.aoMap = null;
-        this.activeMaterial.metalnessMap = null;
-        this.activeMaterial.roughnessMap = null;
-        this.activeMaterial.needsUpdate = true;
-      }
-      for (const channel of ORM_CHANNELS) {
-        this.#applyChannelScalar(channel.key);
-      }
-    }
+    this.#applyOrmState();
     this.#updateOrmModeView();
   }
 
@@ -1077,48 +1067,45 @@ export class MaterialPanel {
     this.ormChannelState[channelKey].scalar = clamped;
     this.#syncChannelInputs(channelKey, source);
     this.#updateChannelPreviews(channelKey);
-    this.#applyChannelScalar(channelKey);
+    this.#applyOrmState();
   }
 
   /**
-   * Применяет скалярное значение канала к материалу.
-   * @param {OrmChannelKey} channelKey
+   * Применяет активный режим ORM к материалу.
    */
-  #applyChannelScalar(channelKey) {
+  #applyOrmState() {
     if (!this.activeMaterial) {
       return;
     }
-    const value = this.ormChannelState[channelKey].scalar;
-    const { scalarProp } = this.ormChannels[channelKey].config;
-    this.activeMaterial[scalarProp] = value;
-    this.activeMaterial.needsUpdate = true;
-  }
 
-  /**
-   * Применяет объединенную ORM-текстуру к материалу.
-   */
-  #applyPackedTexture() {
-    if (!this.activeMaterial) {
-      return;
-    }
-    const texture = this.ormPackedTexture ?? null;
-    this.activeMaterial.aoMap = texture;
-    this.activeMaterial.metalnessMap = texture;
-    this.activeMaterial.roughnessMap = texture;
-    this.activeMaterial.needsUpdate = true;
-  }
+    if (this.ormMode === 'packed') {
+      const texture = this.ormPackedTexture ?? null;
+      this.activeMaterial.aoMap = texture;
+      this.activeMaterial.metalnessMap = texture;
+      this.activeMaterial.roughnessMap = texture;
 
-  /**
-   * Применяет раздельные текстуры каналов к материалу.
-   */
-  #applySeparateTextures() {
-    if (!this.activeMaterial) {
-      return;
+      for (const channel of ORM_CHANNELS) {
+        const { scalarProp, textureScalar } = this.ormChannels[channel.key].config;
+        const fallback = this.ormChannelState[channel.key].scalar;
+        this.activeMaterial[scalarProp] = texture ? textureScalar : fallback;
+      }
+    } else if (this.ormMode === 'separate') {
+      for (const channel of ORM_CHANNELS) {
+        const state = this.ormChannelState[channel.key];
+        const { mapProp, scalarProp, textureScalar } = this.ormChannels[channel.key].config;
+        const texture = state.texture ?? null;
+        this.activeMaterial[mapProp] = texture;
+        this.activeMaterial[scalarProp] = texture ? textureScalar : state.scalar;
+      }
+    } else {
+      for (const channel of ORM_CHANNELS) {
+        const state = this.ormChannelState[channel.key];
+        const { mapProp, scalarProp } = this.ormChannels[channel.key].config;
+        this.activeMaterial[mapProp] = null;
+        this.activeMaterial[scalarProp] = state.scalar;
+      }
     }
-    for (const channel of ORM_CHANNELS) {
-      const texture = this.ormChannelState[channel.key].texture ?? null;
-      this.activeMaterial[channel.mapProp] = texture;
-    }
+
     this.activeMaterial.needsUpdate = true;
   }
 
@@ -1316,9 +1303,7 @@ export class MaterialPanel {
       const texture = await this.#loadTexture(file, LinearSRGBColorSpace);
       this.ormPackedTexture = texture;
       this.ormPackedPreview = getTexturePreview(texture) ?? WHITE_PREVIEW;
-      this.ormMode = 'packed';
-      this.#applyPackedTexture();
-      this.#updateOrmModeView();
+      this.#setOrmMode('packed', { force: true });
     } catch (error) {
       console.error('Не удалось загрузить ORM-текстуру', error);
     }
@@ -1328,14 +1313,11 @@ export class MaterialPanel {
    * Удаляет объединенную ORM-текстуру.
    */
   #handleRemovePackedTexture() {
-    if (this.activeMaterial && this.ormMode === 'packed') {
-      this.activeMaterial.aoMap = null;
-      this.activeMaterial.metalnessMap = null;
-      this.activeMaterial.roughnessMap = null;
-      this.activeMaterial.needsUpdate = true;
-    }
     this.ormPackedTexture = null;
     this.ormPackedPreview = WHITE_PREVIEW;
+    if (this.ormMode === 'packed') {
+      this.#applyOrmState();
+    }
     this.#updateOrmModeView();
   }
 
@@ -1354,12 +1336,7 @@ export class MaterialPanel {
       this.ormChannelState[channelKey].texture = texture;
       const preview = getTexturePreview(texture) ?? previousPreview ?? WHITE_PREVIEW;
       this.ormChannelState[channelKey].texturePreview = preview;
-      if (this.ormMode !== 'separate') {
-        this.#setOrmMode('separate');
-      } else {
-        this.#applySeparateTextures();
-        this.#updateOrmModeView();
-      }
+      this.#setOrmMode('separate', { force: true });
     } catch (error) {
       console.error(`Не удалось загрузить текстуру канала ${channelKey}`, error);
     }
@@ -1373,7 +1350,7 @@ export class MaterialPanel {
     this.ormChannelState[channelKey].texture = null;
     this.ormChannelState[channelKey].texturePreview = WHITE_PREVIEW;
     if (this.ormMode === 'separate') {
-      this.#applySeparateTextures();
+      this.#applyOrmState();
     }
     this.#updateOrmModeView();
   }
