@@ -162,8 +162,6 @@ export class MaterialPanel {
     this.savedColorTexture = null;
     /** @type {string} */
     this.savedColorPreview = WHITE_PREVIEW;
-    /** @type {boolean} */
-    this.savedColorIsUpload = false;
     /** @type {string} */
     this.savedColorHex = '#ffffff';
 
@@ -208,7 +206,6 @@ export class MaterialPanel {
     this.activeMaterial = material;
     this.savedColorTexture = material.map ?? null;
     this.savedColorPreview = getTexturePreview(material.map) ?? WHITE_PREVIEW;
-    this.savedColorIsUpload = material.map ? Boolean(material.map.userData?.__isUploaded) : false;
     this.colorMode = material.map ? 'texture' : 'color';
     this.#syncModeInputs();
 
@@ -370,7 +367,6 @@ export class MaterialPanel {
       if (map) {
         this.savedColorTexture = map;
         this.savedColorPreview = getTexturePreview(map) ?? WHITE_PREVIEW;
-        this.savedColorIsUpload = Boolean(map.userData?.__isUploaded);
       }
       if (this.activeMaterial.map) {
         this.activeMaterial.map = null;
@@ -386,7 +382,6 @@ export class MaterialPanel {
       if (activeMap) {
         this.savedColorTexture = activeMap;
         this.savedColorPreview = getTexturePreview(activeMap) ?? WHITE_PREVIEW;
-        this.savedColorIsUpload = Boolean(activeMap.userData?.__isUploaded);
       }
       this.#ensureTextureColorNeutral();
     }
@@ -501,20 +496,14 @@ export class MaterialPanel {
       return;
     }
     const map = this.activeMaterial?.map ?? null;
-    let preview = WHITE_PREVIEW;
-    let isUploaded = false;
-    if (map) {
-      preview = map.userData?.__previewUrl ?? getTexturePreview(map) ?? WHITE_PREVIEW;
-      isUploaded = Boolean(map.userData?.__isUploaded);
-    } else if (this.savedColorTexture) {
-      preview = this.savedColorPreview ?? WHITE_PREVIEW;
-      isUploaded = this.savedColorIsUpload;
-    } else {
-      preview = this.savedColorPreview ?? WHITE_PREVIEW;
-    }
-    this.textureImage.src = preview ?? WHITE_PREVIEW;
+    const preview = map
+      ? map.userData?.__previewUrl ?? getTexturePreview(map)
+      : this.savedColorPreview;
+    const resolvedPreview = preview ?? WHITE_PREVIEW;
+    this.textureImage.src = resolvedPreview;
     if (this.textureTarget) {
-      this.textureTarget.classList.toggle('texture-upload--no-preview', isUploaded);
+      const hasPreview = Boolean(resolvedPreview);
+      this.textureTarget.classList.toggle('texture-upload--no-preview', !hasPreview);
     }
   }
 
@@ -529,10 +518,11 @@ export class MaterialPanel {
     const preview = normalMap
       ? normalMap.userData?.__previewUrl ?? getTexturePreview(normalMap)
       : null;
-    this.normalTextureImage.src = preview ?? NEUTRAL_NORMAL_PREVIEW;
+    const resolvedPreview = preview ?? NEUTRAL_NORMAL_PREVIEW;
+    this.normalTextureImage.src = resolvedPreview;
     if (this.normalTextureTarget) {
-      const isUploaded = Boolean(normalMap?.userData?.__isUploaded);
-      this.normalTextureTarget.classList.toggle('texture-upload--no-preview', isUploaded);
+      const hasPreview = Boolean(resolvedPreview);
+      this.normalTextureTarget.classList.toggle('texture-upload--no-preview', !hasPreview);
     }
   }
 
@@ -565,7 +555,6 @@ export class MaterialPanel {
       this.activeMaterial.needsUpdate = true;
       this.savedColorTexture = texture;
       this.savedColorPreview = getTexturePreview(texture) ?? WHITE_PREVIEW;
-      this.savedColorIsUpload = true;
       this.colorMode = 'texture';
       this.#ensureTextureColorNeutral();
       this.#updateColorModeView();
@@ -606,7 +595,6 @@ export class MaterialPanel {
     }
     this.savedColorTexture = null;
     this.savedColorPreview = WHITE_PREVIEW;
-    this.savedColorIsUpload = false;
     this.colorMode = 'color';
     this.#restoreSavedColor();
     this.#updateColorModeView();
@@ -704,7 +692,6 @@ export class MaterialPanel {
     this.activeMaterial = null;
     this.savedColorTexture = null;
     this.savedColorPreview = WHITE_PREVIEW;
-    this.savedColorIsUpload = false;
     this.savedColorHex = '#ffffff';
     this.colorMode = 'color';
     if (this.colorInput) {
