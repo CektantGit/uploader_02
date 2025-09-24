@@ -64,31 +64,106 @@ function getNeutralNormalTexture() {
 }
 
 /**
- * Преобразует данные изображения в dataURL.
+ * Преобразует источник изображения в CanvasImageSource с исходными размерами.
+ * @param {any} image
+ * @returns {{ source: CanvasImageSource; width: number; height: number } | null}
+ */
+function normalizeImageLike(image) {
+  if (!image) {
+    return null;
+  }
+  if (typeof HTMLCanvasElement !== 'undefined' && image instanceof HTMLCanvasElement) {
+    return { source: image, width: image.width, height: image.height };
+  }
+  if (typeof OffscreenCanvas !== 'undefined' && image instanceof OffscreenCanvas) {
+    return { source: /** @type {CanvasImageSource} */ (image), width: image.width, height: image.height };
+  }
+  if (typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap) {
+    return { source: image, width: image.width, height: image.height };
+  }
+  if (typeof HTMLImageElement !== 'undefined' && image instanceof HTMLImageElement) {
+    const width = image.naturalWidth || image.width;
+    const height = image.naturalHeight || image.height;
+    if (!width || !height) {
+      return null;
+    }
+    return { source: image, width, height };
+  }
+  if ('data' in image && typeof image.data !== 'undefined' && image.width && image.height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return null;
+    }
+    const sourceData = image.data instanceof Uint8ClampedArray ? image.data : new Uint8ClampedArray(image.data);
+    const imageData = new ImageData(sourceData, image.width, image.height);
+    context.putImageData(imageData, 0, 0);
+    return { source: canvas, width: image.width, height: image.height };
+  }
+  if ('canvas' in image && image.canvas) {
+    const canvas = image.canvas;
+    if (typeof HTMLCanvasElement !== 'undefined' && canvas instanceof HTMLCanvasElement) {
+      return { source: canvas, width: canvas.width, height: canvas.height };
+    }
+    if (typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas) {
+      return { source: /** @type {CanvasImageSource} */ (canvas), width: canvas.width, height: canvas.height };
+    }
+  }
+  return null;
+}
+
+/**
+ * Создает уменьшенное превью 100x100 из изображения.
  * @param {ImageBitmap | HTMLCanvasElement | OffscreenCanvas | { data: ArrayLike<number>; width: number; height: number }} image
+ * @param {number} [targetWidth=100]
+ * @param {number} [targetHeight=100]
  * @returns {string | null}
  */
-function imageLikeToDataUrl(image) {
-  const width = image.width ?? image.canvas?.width ?? image.videoWidth ?? image.naturalWidth;
-  const height = image.height ?? image.canvas?.height ?? image.videoHeight ?? image.naturalHeight;
+function imageLikeToDataUrl(image, targetWidth = 100, targetHeight = 100) {
+  if (!targetWidth || !targetHeight) {
+    return null;
+  }
+  const normalized = normalizeImageLike(image);
+  if (!normalized) {
+    return null;
+  }
+  const { source, width, height } = normalized;
   if (!width || !height) {
     return null;
   }
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
   const context = canvas.getContext('2d');
   if (!context) {
     return null;
   }
-  if ('data' in image && image.data) {
-    const source = image.data instanceof Uint8ClampedArray ? image.data : new Uint8ClampedArray(image.data);
-    const imageData = new ImageData(source, width, height);
-    context.putImageData(imageData, 0, 0);
-  } else {
-    context.drawImage(/** @type {CanvasImageSource} */ (image), 0, 0, width, height);
+  const targetAspect = targetWidth / targetHeight;
+  const sourceAspect = width / height;
+  let sx = 0;
+  let sy = 0;
+  let sWidth = width;
+  let sHeight = height;
+  if (Number.isFinite(sourceAspect) && Number.isFinite(targetAspect) && sourceAspect !== targetAspect) {
+    if (sourceAspect > targetAspect) {
+      sHeight = height;
+      sWidth = height * targetAspect;
+      sx = (width - sWidth) / 2;
+    } else {
+      sWidth = width;
+      sHeight = width / targetAspect;
+      sy = (height - sHeight) / 2;
+    }
   }
-  return canvas.toDataURL('image/png');
+  try {
+    context.drawImage(source, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
+    return canvas.toDataURL('image/png');
+  } catch (error) {
+    console.warn('Не удалось создать уменьшенное превью текстуры', error);
+    return null;
+  }
 }
 
 /**
@@ -104,20 +179,28 @@ function getTexturePreview(texture) {
   if (typeof image === 'string') {
     return image;
   }
+  const preview = imageLikeToDataUrl(image, 100, 100);
+  if (preview) {
+    return preview;
+  }
   if (typeof HTMLImageElement !== 'undefined' && image instanceof HTMLImageElement) {
     return image.currentSrc || image.src || null;
   }
   if (typeof HTMLCanvasElement !== 'undefined' && image instanceof HTMLCanvasElement) {
-    return image.toDataURL('image/png');
-  }
-  if (typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap) {
-    return imageLikeToDataUrl(image);
-  }
-  if ('data' in image && typeof image.data !== 'undefined') {
-    return imageLikeToDataUrl(/** @type {{ data: ArrayLike<number>; width: number; height: number }} */ (image));
+    try {
+      return image.toDataURL('image/png');
+    } catch (error) {
+      console.warn('Не удалось получить dataURL холста текстуры', error);
+      return null;
+    }
   }
   if ('toDataURL' in image && typeof image.toDataURL === 'function') {
-    return image.toDataURL('image/png');
+    try {
+      return image.toDataURL('image/png');
+    } catch (error) {
+      console.warn('Не удалось получить dataURL текстуры', error);
+      return null;
+    }
   }
   if ('src' in image && typeof image.src === 'string') {
     return image.src;
@@ -657,7 +740,8 @@ export class MaterialPanel {
     texture.needsUpdate = true;
     texture.userData = texture.userData ?? {};
     texture.userData.__isUploaded = true;
-    texture.userData.__previewUrl = dataUrl;
+    const previewUrl = getTexturePreview(texture);
+    texture.userData.__previewUrl = previewUrl ?? dataUrl;
     return texture;
   }
 
