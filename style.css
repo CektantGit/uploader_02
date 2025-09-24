@@ -418,6 +418,7 @@ canvas#scene {
 }
 
 .material-field {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -444,6 +445,30 @@ canvas#scene {
   overflow: hidden;
   -webkit-appearance: none;
   appearance: none;
+}
+
+.material-field__hover-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #ffffff;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.75) 100%);
+  border-radius: 0 0 10px 10px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.material-field:hover .material-field__hover-label,
+.material-field:focus-within .material-field__hover-label {
+  opacity: 1;
 }
 
 .material-field__input::-webkit-color-swatch-wrapper {
