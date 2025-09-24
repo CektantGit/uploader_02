@@ -857,30 +857,42 @@ export class MaterialPanel {
     this.ormChannelState.metalness.scalar = metalness;
     this.ormChannelState.roughness.scalar = roughness;
 
-    this.ormChannelState.ao.texture = aoMap ?? null;
-    this.ormChannelState.metalness.texture = metalnessMap ?? null;
-    this.ormChannelState.roughness.texture = roughnessMap ?? null;
+    const previousPreviews = {
+      ao: this.ormChannelState.ao.texturePreview,
+      metalness: this.ormChannelState.metalness.texturePreview,
+      roughness: this.ormChannelState.roughness.texturePreview,
+    };
 
-    this.ormChannelState.ao.texturePreview = aoMap
-      ? getTexturePreview(aoMap) ?? this.ormChannelState.ao.texturePreview
-      : WHITE_PREVIEW;
-    this.ormChannelState.metalness.texturePreview = metalnessMap
-      ? getTexturePreview(metalnessMap) ?? this.ormChannelState.metalness.texturePreview
-      : WHITE_PREVIEW;
-    this.ormChannelState.roughness.texturePreview = roughnessMap
-      ? getTexturePreview(roughnessMap) ?? this.ormChannelState.roughness.texturePreview
-      : WHITE_PREVIEW;
+    const channelTextures = {
+      ao: aoMap ?? null,
+      metalness: metalnessMap ?? null,
+      roughness: roughnessMap ?? null,
+    };
 
     const hasPackedTexture = Boolean(aoMap && metalnessMap && roughnessMap && aoMap === metalnessMap && aoMap === roughnessMap);
     if (hasPackedTexture) {
       this.ormPackedTexture = aoMap;
-      const preview = this.ormChannelState.ao.texturePreview || getTexturePreview(aoMap) || WHITE_PREVIEW;
+      const preview = getTexturePreview(aoMap) ?? previousPreviews.ao ?? WHITE_PREVIEW;
       this.ormPackedPreview = preview || WHITE_PREVIEW;
+      for (const channel of ORM_CHANNELS) {
+        this.ormChannelState[channel.key].texture = null;
+        this.ormChannelState[channel.key].texturePreview = WHITE_PREVIEW;
+      }
       this.ormMode = 'packed';
     } else {
       this.ormPackedTexture = null;
       this.ormPackedPreview = WHITE_PREVIEW;
-      this.ormMode = aoMap || metalnessMap || roughnessMap ? 'separate' : 'scalar';
+      for (const channel of ORM_CHANNELS) {
+        const texture = channelTextures[channel.key];
+        this.ormChannelState[channel.key].texture = texture;
+        if (texture) {
+          const preview = getTexturePreview(texture) ?? previousPreviews[channel.key] ?? WHITE_PREVIEW;
+          this.ormChannelState[channel.key].texturePreview = preview;
+        } else {
+          this.ormChannelState[channel.key].texturePreview = WHITE_PREVIEW;
+        }
+      }
+      this.ormMode = channelTextures.ao || channelTextures.metalness || channelTextures.roughness ? 'separate' : 'scalar';
     }
 
     for (const channel of ORM_CHANNELS) {
@@ -903,20 +915,6 @@ export class MaterialPanel {
     this.ormMode = mode;
     if (this.activeMaterial) {
       if (mode === 'packed') {
-        if (!this.ormPackedTexture) {
-          const fallbackTexture =
-            this.ormChannelState.ao.texture ??
-            this.ormChannelState.metalness.texture ??
-            this.ormChannelState.roughness.texture ??
-            null;
-          if (fallbackTexture) {
-            this.ormPackedTexture = fallbackTexture;
-            const preview = fallbackTexture.userData?.__previewUrl ?? getTexturePreview(fallbackTexture);
-            if (preview) {
-              this.ormPackedPreview = preview;
-            }
-          }
-        }
         this.#applyPackedTexture();
       } else if (mode === 'separate') {
         this.#applySeparateTextures();
@@ -1352,17 +1350,16 @@ export class MaterialPanel {
     }
     try {
       const texture = await this.#loadTexture(file, LinearSRGBColorSpace);
+      const previousPreview = this.ormChannelState[channelKey].texturePreview;
       this.ormChannelState[channelKey].texture = texture;
-      this.ormChannelState[channelKey].texturePreview = getTexturePreview(texture) ?? WHITE_PREVIEW;
+      const preview = getTexturePreview(texture) ?? previousPreview ?? WHITE_PREVIEW;
+      this.ormChannelState[channelKey].texturePreview = preview;
       if (this.ormMode !== 'separate') {
-        this.ormMode = 'separate';
+        this.#setOrmMode('separate');
+      } else {
+        this.#applySeparateTextures();
+        this.#updateOrmModeView();
       }
-      if (this.ormMode === 'separate') {
-        const { mapProp } = this.ormChannels[channelKey].config;
-        this.activeMaterial[mapProp] = texture;
-        this.activeMaterial.needsUpdate = true;
-      }
-      this.#updateOrmModeView();
     } catch (error) {
       console.error(`Не удалось загрузить текстуру канала ${channelKey}`, error);
     }
@@ -1373,13 +1370,11 @@ export class MaterialPanel {
    * @param {OrmChannelKey} channelKey
    */
   #handleRemoveSeparateTexture(channelKey) {
-    if (this.activeMaterial && this.ormMode === 'separate') {
-      const { mapProp } = this.ormChannels[channelKey].config;
-      this.activeMaterial[mapProp] = null;
-      this.activeMaterial.needsUpdate = true;
-    }
     this.ormChannelState[channelKey].texture = null;
     this.ormChannelState[channelKey].texturePreview = WHITE_PREVIEW;
+    if (this.ormMode === 'separate') {
+      this.#applySeparateTextures();
+    }
     this.#updateOrmModeView();
   }
 
