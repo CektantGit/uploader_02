@@ -25,6 +25,14 @@ let neutralNormalTexture = null;
  * @typedef {'separate-slider' | 'separate-number' | 'scalar-slider' | 'scalar-number' | null} OrmScalarSource
  */
 
+/**
+ * @typedef {'slider' | 'texture' | 'color-alpha'} OpacityMode
+ */
+
+/**
+ * @typedef {'slider-input' | 'slider-number' | null} OpacityValueSource
+ */
+
 const ORM_CHANNELS = [
   /** @type {{ key: OrmChannelKey; mapProp: 'aoMap' | 'metalnessMap' | 'roughnessMap'; scalarProp: 'aoMapIntensity' | 'metalness' | 'roughness'; defaultScalar: number; textureScalar: number; }} */ (
     {
@@ -234,6 +242,60 @@ function imageLikeToDataUrl(image, targetWidth = 100, targetHeight = 100) {
 }
 
 /**
+ * Определяет, содержит ли изображение прозрачные пиксели.
+ * @param {ImageBitmap | HTMLCanvasElement | OffscreenCanvas | HTMLImageElement | { data?: ArrayLike<number>; width?: number; height?: number } | null} image
+ * @returns {boolean}
+ */
+function imageLikeHasAlpha(image) {
+  if (!image) {
+    return false;
+  }
+  if ('data' in image && image.data && image.width && image.height) {
+    const data = image.data;
+    const { width, height } = image;
+    const total = Math.min(data.length, width * height * 4);
+    for (let index = 3; index < total; index += 4) {
+      if (Number(data[index]) < 255) {
+        return true;
+      }
+    }
+    return false;
+  }
+  const normalized = normalizeImageLike(image);
+  if (!normalized) {
+    return false;
+  }
+  const { source, width, height } = normalized;
+  if (!width || !height) {
+    return false;
+  }
+  const sampleWidth = Math.min(width, 64);
+  const sampleHeight = Math.min(height, 64);
+  if (!sampleWidth || !sampleHeight) {
+    return false;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = sampleWidth;
+  canvas.height = sampleHeight;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) {
+    return false;
+  }
+  try {
+    context.drawImage(source, 0, 0, sampleWidth, sampleHeight);
+    const { data } = context.getImageData(0, 0, sampleWidth, sampleHeight);
+    for (let index = 3; index < data.length; index += 4) {
+      if (data[index] < 255) {
+        return true;
+      }
+    }
+  } catch (error) {
+    console.warn('Не удалось определить наличие альфа-канала изображения', error);
+  }
+  return false;
+}
+
+/**
  * Извлекает dataURL из текстуры.
  * @param {import('three').Texture | null | undefined} texture
  * @returns {string | null}
@@ -294,6 +356,20 @@ export class MaterialPanel {
     this.textureImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-color-texture-image]'));
     this.textureInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-color-texture-input]'));
     this.textureRemoveButton = /** @type {HTMLButtonElement | null} */ (root.querySelector('[data-color-texture-remove]'));
+    this.opacityModeInputs = /** @type {HTMLInputElement[]} */ (Array.from(root.querySelectorAll('[data-opacity-mode]')));
+    this.opacitySliderContainer = /** @type {HTMLElement | null} */ (root.querySelector('[data-opacity-slider]'));
+    this.opacitySliderTarget = /** @type {HTMLElement | null} */ (root.querySelector('[data-opacity-slider-target]'));
+    this.opacitySliderImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-opacity-slider-image]'));
+    this.opacitySliderInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-opacity-slider-input]'));
+    this.opacitySliderNumber = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-opacity-slider-number]'));
+    this.opacityTextureContainer = /** @type {HTMLElement | null} */ (root.querySelector('[data-opacity-texture]'));
+    this.opacityTextureTarget = /** @type {HTMLElement | null} */ (root.querySelector('[data-opacity-texture-target]'));
+    this.opacityTextureImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-opacity-texture-image]'));
+    this.opacityTextureInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-opacity-texture-input]'));
+    this.opacityTextureRemove = /** @type {HTMLButtonElement | null} */ (root.querySelector('[data-opacity-texture-remove]'));
+    this.opacityColorContainer = /** @type {HTMLElement | null} */ (root.querySelector('[data-opacity-color]'));
+    this.opacityColorTarget = /** @type {HTMLElement | null} */ (root.querySelector('[data-opacity-color-target]'));
+    this.opacityColorImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-opacity-color-image]'));
     this.normalTextureTarget = /** @type {HTMLElement | null} */ (root.querySelector('[data-normal-texture-target]'));
     this.normalTextureImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-normal-texture-image]'));
     this.normalTextureInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-normal-texture-input]'));
@@ -345,6 +421,16 @@ export class MaterialPanel {
     this.savedColorPreview = WHITE_PREVIEW;
     /** @type {string} */
     this.savedColorHex = '#ffffff';
+    /** @type {OpacityMode} */
+    this.opacityMode = 'slider';
+    /** @type {number} */
+    this.opacityValue = 1;
+    /** @type {import('three').Texture | null} */
+    this.opacityTexture = null;
+    /** @type {string} */
+    this.opacityTexturePreview = WHITE_PREVIEW;
+    /** @type {boolean} */
+    this.colorTextureHasAlpha = false;
     /** @type {OrmMode} */
     this.ormMode = 'scalar';
     /** @type {import('three').Texture | null} */
@@ -380,6 +466,30 @@ export class MaterialPanel {
     }
     if (this.textureTarget) {
       this.textureTarget.classList.remove('texture-upload--no-preview');
+    }
+    if (this.opacitySliderImage) {
+      this.opacitySliderImage.src = scalarToPreview(this.opacityValue);
+    }
+    if (this.opacitySliderTarget) {
+      this.opacitySliderTarget.classList.remove('texture-upload--no-preview');
+    }
+    if (this.opacitySliderInput) {
+      this.opacitySliderInput.value = String(this.opacityValue);
+    }
+    if (this.opacitySliderNumber) {
+      this.opacitySliderNumber.value = this.opacityValue.toFixed(2);
+    }
+    if (this.opacityTextureImage) {
+      this.opacityTextureImage.src = this.opacityTexturePreview;
+    }
+    if (this.opacityTextureTarget) {
+      this.opacityTextureTarget.classList.add('texture-upload--no-preview');
+    }
+    if (this.opacityColorImage) {
+      this.opacityColorImage.src = WHITE_PREVIEW;
+    }
+    if (this.opacityColorTarget) {
+      this.opacityColorTarget.classList.add('texture-upload--no-preview');
     }
     if (this.normalTextureImage) {
       this.normalTextureImage.src = NEUTRAL_NORMAL_PREVIEW;
@@ -425,6 +535,8 @@ export class MaterialPanel {
 
     this.#bindEvents();
     this.#updateColorModeView();
+    this.#updateOpacityAvailability();
+    this.#updateOpacityModeView();
     this.#updateOrmModeView();
     this.#showMessage('Выберите один меш для настройки материала.');
   }
@@ -495,6 +607,7 @@ export class MaterialPanel {
 
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
+    this.#syncOpacityFromMaterial(material);
     this.#updateNormalPreview();
     this.#updateOrmModeView();
     this.#showBody();
@@ -544,6 +657,79 @@ export class MaterialPanel {
       this.textureRemoveButton.addEventListener('click', (event) => {
         event.stopPropagation();
         this.#handleRemoveBaseTexture();
+      });
+    }
+
+    this.opacityModeInputs.forEach((input) => {
+      input.addEventListener('change', () => {
+        if (!input.checked) {
+          return;
+        }
+        const value = input.value;
+        const mode = value === 'texture' ? 'texture' : value === 'color-alpha' ? 'color-alpha' : 'slider';
+        this.#setOpacityMode(mode);
+      });
+    });
+
+    if (this.opacitySliderInput) {
+      this.opacitySliderInput.addEventListener('input', () => {
+        const raw = Number.parseFloat(this.opacitySliderInput?.value ?? '1');
+        this.#setOpacityValue(raw, 'slider-input');
+      });
+    }
+
+    if (this.opacitySliderNumber) {
+      const applyOpacityNumber = () => {
+        if (!this.opacitySliderNumber) {
+          return;
+        }
+        const raw = Number.parseFloat(this.opacitySliderNumber.value);
+        if (!Number.isFinite(raw)) {
+          if (document.activeElement !== this.opacitySliderNumber) {
+            this.#syncOpacityValueInputs(null);
+          }
+          return;
+        }
+        this.#setOpacityValue(raw, 'slider-number');
+      };
+
+      this.opacitySliderNumber.addEventListener('input', applyOpacityNumber);
+      this.opacitySliderNumber.addEventListener('change', applyOpacityNumber);
+      this.opacitySliderNumber.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          applyOpacityNumber();
+          this.opacitySliderNumber?.blur();
+        }
+      });
+    }
+
+    if (this.opacityTextureTarget && this.opacityTextureInput) {
+      this.opacityTextureTarget.addEventListener('click', (event) => {
+        if ((event.target instanceof HTMLElement) && event.target.closest('[data-opacity-texture-remove]')) {
+          return;
+        }
+        if (this.opacityMode !== 'texture') {
+          return;
+        }
+        this.opacityTextureInput.click();
+      });
+    }
+
+    if (this.opacityTextureInput) {
+      this.opacityTextureInput.addEventListener('change', async () => {
+        const file = this.opacityTextureInput?.files?.[0];
+        if (!file) {
+          return;
+        }
+        await this.#handleOpacityTextureFile(file);
+        this.opacityTextureInput.value = '';
+      });
+    }
+
+    if (this.opacityTextureRemove) {
+      this.opacityTextureRemove.addEventListener('click', (event) => {
+        event.stopPropagation();
+        this.#handleRemoveOpacityTexture();
       });
     }
 
@@ -802,6 +988,7 @@ export class MaterialPanel {
     }
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
+    this.#handleColorTextureChange();
   }
 
   /**
@@ -827,6 +1014,332 @@ export class MaterialPanel {
     this.modeInputs.forEach((input) => {
       input.checked = input.value === this.colorMode;
     });
+  }
+
+  /**
+   * Определяет, можно ли использовать альфа-канал текстуры цвета.
+   * @returns {boolean}
+   */
+  #canUseColorAlpha() {
+    return this.colorMode === 'texture' && Boolean(this.activeMaterial?.map) && this.colorTextureHasAlpha;
+  }
+
+  /**
+   * Обновляет доступность опций прозрачности.
+   */
+  #updateOpacityAvailability() {
+    const canUse = this.#canUseColorAlpha();
+    this.opacityModeInputs.forEach((input) => {
+      if (input.value === 'color-alpha') {
+        input.disabled = !canUse;
+      }
+    });
+    if (this.opacityColorContainer) {
+      this.opacityColorContainer.classList.toggle('is-disabled', !canUse);
+    }
+  }
+
+  /**
+   * Гарантирует, что выбранный режим прозрачности валиден.
+   * @returns {boolean}
+   */
+  #ensureValidOpacityMode() {
+    if (this.opacityMode === 'color-alpha' && !this.#canUseColorAlpha()) {
+      this.opacityMode = 'slider';
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Устанавливает режим прозрачности.
+   * @param {OpacityMode} mode
+   * @param {{ force?: boolean }} [options]
+   */
+  #setOpacityMode(mode, options = {}) {
+    const desired = mode === 'texture' ? 'texture' : mode === 'color-alpha' ? 'color-alpha' : 'slider';
+    if (desired === 'color-alpha' && !this.#canUseColorAlpha()) {
+      if (!options.force) {
+        this.#syncOpacityModeInputs();
+        return;
+      }
+      this.opacityMode = 'slider';
+    } else {
+      if (this.opacityMode === desired && !options.force) {
+        this.#updateOpacityModeView();
+        return;
+      }
+      this.opacityMode = desired;
+    }
+    this.#updateOpacityAvailability();
+    this.#updateOpacityModeView();
+    this.#applyOpacityState();
+  }
+
+  /**
+   * Применяет текущие настройки прозрачности к материалу.
+   */
+  #applyOpacityState() {
+    if (!this.activeMaterial) {
+      return;
+    }
+    const material = this.activeMaterial;
+    material.userData = material.userData ?? {};
+    material.userData.__opacityMode = this.opacityMode;
+    material.userData.__opacityValue = this.opacityValue;
+    material.userData.__useColorAlpha = this.opacityMode === 'color-alpha';
+    if (this.opacityMode === 'slider') {
+      if (material.alphaMap) {
+        material.alphaMap = null;
+      }
+      material.opacity = this.opacityValue;
+      material.transparent = this.opacityValue < 1;
+    } else if (this.opacityMode === 'texture') {
+      material.alphaMap = this.opacityTexture ?? null;
+      material.opacity = 1;
+      material.transparent = Boolean(this.opacityTexture);
+      if (material.alphaMap) {
+        material.alphaMap.needsUpdate = true;
+      }
+    } else {
+      if (material.alphaMap) {
+        material.alphaMap = null;
+      }
+      material.opacity = 1;
+      material.transparent = true;
+    }
+    material.needsUpdate = true;
+  }
+
+  /**
+   * Обновляет представление блока прозрачности.
+   */
+  #updateOpacityModeView() {
+    this.#syncOpacityModeInputs();
+    if (this.opacitySliderContainer) {
+      this.opacitySliderContainer.classList.toggle('is-hidden', this.opacityMode !== 'slider');
+    }
+    if (this.opacityTextureContainer) {
+      this.opacityTextureContainer.classList.toggle('is-hidden', this.opacityMode !== 'texture');
+    }
+    if (this.opacityColorContainer) {
+      this.opacityColorContainer.classList.toggle('is-hidden', this.opacityMode !== 'color-alpha');
+    }
+    if (this.opacitySliderInput) {
+      this.opacitySliderInput.disabled = this.opacityMode !== 'slider';
+    }
+    if (this.opacitySliderNumber) {
+      this.opacitySliderNumber.disabled = this.opacityMode !== 'slider';
+    }
+  }
+
+  /**
+   * Синхронизирует radio-инпуты режима прозрачности.
+   */
+  #syncOpacityModeInputs() {
+    this.opacityModeInputs.forEach((input) => {
+      input.checked = input.value === this.opacityMode;
+    });
+  }
+
+  /**
+   * Устанавливает значение прозрачности.
+   * @param {number} value
+   * @param {OpacityValueSource} source
+   */
+  #setOpacityValue(value, source) {
+    if (!Number.isFinite(value)) {
+      this.#syncOpacityValueInputs(source);
+      return;
+    }
+    const clamped = clamp01(value);
+    this.opacityValue = clamped;
+    this.#syncOpacityValueInputs(source);
+    this.#updateOpacitySliderPreview();
+    if (this.opacityMode === 'slider') {
+      this.#applyOpacityState();
+    }
+  }
+
+  /**
+   * Синхронизирует элементы управления значением прозрачности.
+   * @param {OpacityValueSource} source
+   */
+  #syncOpacityValueInputs(source) {
+    const sliderValue = this.opacityValue.toString();
+    const numberValue = this.opacityValue.toFixed(2);
+    if (this.opacitySliderInput && source !== 'slider-input') {
+      this.opacitySliderInput.value = sliderValue;
+    }
+    if (this.opacitySliderNumber && source !== 'slider-number') {
+      this.opacitySliderNumber.value = numberValue;
+    }
+  }
+
+  /**
+   * Обновляет превью значения прозрачности.
+   */
+  #updateOpacitySliderPreview() {
+    if (this.opacitySliderImage) {
+      this.opacitySliderImage.src = scalarToPreview(this.opacityValue);
+    }
+  }
+
+  /**
+   * Обновляет превью текстуры прозрачности.
+   */
+  #updateOpacityTexturePreview() {
+    if (!this.opacityTextureImage) {
+      return;
+    }
+    if (this.opacityTexture) {
+      const preview = this.opacityTexture.userData?.__previewUrl ?? getTexturePreview(this.opacityTexture);
+      if (preview) {
+        this.opacityTexturePreview = preview;
+      }
+    } else {
+      this.opacityTexturePreview = WHITE_PREVIEW;
+    }
+    this.opacityTextureImage.src = this.opacityTexturePreview;
+    if (this.opacityTextureTarget) {
+      this.opacityTextureTarget.classList.toggle('texture-upload--no-preview', !this.opacityTexture);
+    }
+  }
+
+  /**
+   * Обновляет превью режима использования альфа-канала цвета.
+   */
+  #updateOpacityColorPreview() {
+    if (!this.opacityColorImage) {
+      return;
+    }
+    const map = this.activeMaterial?.map ?? null;
+    const previewSource = map
+      ? map.userData?.__previewUrl ?? getTexturePreview(map)
+      : this.savedColorPreview;
+    const resolved = previewSource ?? WHITE_PREVIEW;
+    this.opacityColorImage.src = resolved;
+    if (this.opacityColorTarget) {
+      const hasPreview = Boolean(map && this.colorMode === 'texture' && previewSource);
+      this.opacityColorTarget.classList.toggle('texture-upload--no-preview', !hasPreview);
+    }
+  }
+
+  /**
+   * Обрабатывает изменения текстуры цвета.
+   */
+  #handleColorTextureChange() {
+    const map = this.activeMaterial?.map ?? null;
+    this.colorTextureHasAlpha = Boolean(map && this.#textureHasAlpha(map));
+    this.#updateOpacityColorPreview();
+    const modeChanged = this.#ensureValidOpacityMode();
+    this.#updateOpacityAvailability();
+    this.#updateOpacityModeView();
+    if (this.activeMaterial && (modeChanged || this.opacityMode === 'color-alpha')) {
+      this.#applyOpacityState();
+    }
+  }
+
+  /**
+   * Синхронизирует состояние прозрачности с материалом.
+   * @param {(import('three').Material & { alphaMap?: import('three').Texture | null; opacity?: number; transparent?: boolean; userData?: any })} material
+   */
+  #syncOpacityFromMaterial(material) {
+    const alphaMap = /** @type {import('three').Texture | null} */ (material.alphaMap ?? null);
+    this.opacityTexture = alphaMap;
+    if (alphaMap) {
+      const preview = alphaMap.userData?.__previewUrl ?? getTexturePreview(alphaMap);
+      this.opacityTexturePreview = preview ?? WHITE_PREVIEW;
+      this.#textureHasAlpha(alphaMap);
+    } else {
+      this.opacityTexturePreview = WHITE_PREVIEW;
+    }
+    const storedValue =
+      typeof material.userData?.__opacityValue === 'number'
+        ? clamp01(material.userData.__opacityValue)
+        : clamp01(typeof material.opacity === 'number' ? material.opacity : 1);
+    this.opacityValue = storedValue;
+    this.colorTextureHasAlpha = Boolean(material.map && this.#textureHasAlpha(/** @type {import('three').Texture} */ (material.map)));
+    this.#updateOpacityColorPreview();
+    let resolvedMode = this.opacityMode;
+    const storedMode = material.userData?.__opacityMode;
+    if (storedMode === 'texture' && this.opacityTexture) {
+      resolvedMode = 'texture';
+    } else if (storedMode === 'color-alpha' && this.#canUseColorAlpha()) {
+      resolvedMode = 'color-alpha';
+    } else if (storedMode === 'slider') {
+      resolvedMode = 'slider';
+    } else if (this.opacityTexture) {
+      resolvedMode = 'texture';
+    } else if (this.#canUseColorAlpha() && (material.userData?.__useColorAlpha || (material.transparent && material.opacity === 1))) {
+      resolvedMode = 'color-alpha';
+    } else if (typeof material.opacity === 'number' && material.opacity < 1) {
+      resolvedMode = 'slider';
+    } else if (!this.#canUseColorAlpha()) {
+      resolvedMode = 'slider';
+    }
+    this.opacityMode = /** @type {OpacityMode} */ (resolvedMode);
+    this.#syncOpacityValueInputs(null);
+    this.#updateOpacitySliderPreview();
+    this.#updateOpacityTexturePreview();
+    this.#updateOpacityAvailability();
+    this.#updateOpacityModeView();
+    this.#applyOpacityState();
+  }
+
+  /**
+   * Обрабатывает загрузку текстуры прозрачности.
+   * @param {File} file
+   */
+  async #handleOpacityTextureFile(file) {
+    if (!this.activeMaterial) {
+      return;
+    }
+    try {
+      const texture = await this.#loadTexture(file, LinearSRGBColorSpace);
+      this.opacityTexture = texture;
+      const preview = getTexturePreview(texture);
+      this.opacityTexturePreview = preview ?? WHITE_PREVIEW;
+      this.#updateOpacityTexturePreview();
+      this.#setOpacityMode('texture', { force: true });
+    } catch (error) {
+      console.error('Не удалось загрузить текстуру прозрачности', error);
+    }
+  }
+
+  /**
+   * Удаляет активную текстуру прозрачности.
+   */
+  #handleRemoveOpacityTexture() {
+    this.opacityTexture = null;
+    this.opacityTexturePreview = WHITE_PREVIEW;
+    if (this.activeMaterial && this.opacityMode === 'texture') {
+      this.#applyOpacityState();
+    }
+    this.#updateOpacityTexturePreview();
+  }
+
+  /**
+   * Проверяет наличие альфа-канала у текстуры и кеширует результат.
+   * @param {import('three').Texture | null} texture
+   * @returns {boolean}
+   */
+  #textureHasAlpha(texture) {
+    if (!texture) {
+      return false;
+    }
+    texture.userData = texture.userData ?? {};
+    if (typeof texture.userData.__hasAlpha === 'boolean') {
+      return texture.userData.__hasAlpha;
+    }
+    const image = texture.image ?? null;
+    if (!image) {
+      texture.userData.__hasAlpha = false;
+      return false;
+    }
+    const hasAlpha = imageLikeHasAlpha(image);
+    texture.userData.__hasAlpha = hasAlpha;
+    return hasAlpha;
   }
 
   /**
@@ -1268,6 +1781,7 @@ export class MaterialPanel {
       this.#ensureTextureColorNeutral();
       this.#updateColorModeView();
       this.#updateBaseTexturePreview();
+      this.#handleColorTextureChange();
     } catch (error) {
       console.error('Не удалось загрузить текстуру цвета', error);
     }
@@ -1372,6 +1886,7 @@ export class MaterialPanel {
     this.#restoreSavedColor();
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
+    this.#handleColorTextureChange();
   }
 
   /**
@@ -1433,6 +1948,7 @@ export class MaterialPanel {
     texture.userData.__isUploaded = true;
     const previewUrl = getTexturePreview(texture);
     texture.userData.__previewUrl = previewUrl ?? dataUrl;
+    texture.userData.__hasAlpha = this.#textureHasAlpha(texture);
     return texture;
   }
 
@@ -1475,6 +1991,17 @@ export class MaterialPanel {
     this.#refreshColorPreview();
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
+    this.opacityMode = 'slider';
+    this.opacityValue = 1;
+    this.opacityTexture = null;
+    this.opacityTexturePreview = WHITE_PREVIEW;
+    this.colorTextureHasAlpha = false;
+    this.#syncOpacityValueInputs(null);
+    this.#updateOpacitySliderPreview();
+    this.#updateOpacityTexturePreview();
+    this.#updateOpacityColorPreview();
+    this.#updateOpacityAvailability();
+    this.#updateOpacityModeView();
     this.#updateNormalPreview();
     if (this.normalStrengthInput) {
       this.normalStrengthInput.value = '1';
@@ -1482,6 +2009,12 @@ export class MaterialPanel {
     this.#updateNormalStrengthValue(true);
     if (this.textureTarget) {
       this.textureTarget.classList.remove('texture-upload--no-preview');
+    }
+    if (this.opacityTextureTarget) {
+      this.opacityTextureTarget.classList.add('texture-upload--no-preview');
+    }
+    if (this.opacityColorTarget) {
+      this.opacityColorTarget.classList.add('texture-upload--no-preview');
     }
     if (this.normalTextureTarget) {
       this.normalTextureTarget.classList.remove('texture-upload--no-preview');

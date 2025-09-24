@@ -420,6 +420,51 @@ canvas#scene {
   transition: background 0.2s ease, color 0.2s ease;
 }
 
+.material-mode__option input:disabled {
+  cursor: not-allowed;
+}
+
+.material-mode__option input:disabled + span {
+  background: rgba(148, 163, 184, 0.2);
+  color: rgba(71, 85, 105, 0.6);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.material-opacity {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.material-opacity--slider .material-slider {
+  width: 100%;
+}
+
+.material-opacity--texture {
+  grid-template-columns: 100px;
+}
+
+.material-opacity--texture .texture-upload {
+  grid-column: 1 / -1;
+}
+
+.material-opacity--color .material-opacity__note {
+  align-self: center;
+}
+
+.material-opacity--color.is-disabled {
+  opacity: 0.5;
+}
+
+.material-opacity__note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #475569;
+}
+
 .material-color-picker,
 .material-texture-picker {
   display: flex;

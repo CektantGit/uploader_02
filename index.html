@@ -103,6 +103,94 @@
               </div>
             </details>
             <details class="material-section" open>
+              <summary class="material-section__summary">Opacity</summary>
+              <div class="material-section__content">
+                <div class="material-mode" role="radiogroup">
+                  <label class="material-mode__option">
+                    <input type="radio" name="opacity-mode" value="slider" data-opacity-mode />
+                    <span>Slider</span>
+                  </label>
+                  <label class="material-mode__option">
+                    <input type="radio" name="opacity-mode" value="texture" data-opacity-mode />
+                    <span>Texture</span>
+                  </label>
+                  <label class="material-mode__option">
+                    <input type="radio" name="opacity-mode" value="color-alpha" data-opacity-mode />
+                    <span>Color Alpha</span>
+                  </label>
+                </div>
+                <div class="material-opacity material-opacity--slider" data-opacity-slider>
+                  <div class="texture-upload texture-upload--readonly" data-opacity-slider-target>
+                    <img
+                      class="texture-upload__image"
+                      data-opacity-slider-image
+                      alt="Opacity value preview"
+                      width="100"
+                      height="100"
+                    />
+                    <div class="texture-upload__label">Value</div>
+                  </div>
+                  <div class="material-slider material-slider--stacked">
+                    <label class="material-slider__label" for="opacity-slider">Opacity</label>
+                    <input
+                      id="opacity-slider"
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value="1"
+                      class="material-slider__input"
+                      data-opacity-slider-input
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value="1.00"
+                      class="material-slider__value"
+                      data-opacity-slider-number
+                      aria-label="Opacity value"
+                    />
+                  </div>
+                </div>
+                <div class="material-opacity material-opacity--texture is-hidden" data-opacity-texture>
+                  <div class="texture-upload" data-opacity-texture-target>
+                    <img
+                      class="texture-upload__image"
+                      data-opacity-texture-image
+                      alt="Opacity texture preview"
+                      width="100"
+                      height="100"
+                    />
+                    <button
+                      type="button"
+                      class="texture-upload__remove"
+                      data-opacity-texture-remove
+                      aria-label="Remove opacity texture"
+                    >
+                      ×
+                    </button>
+                    <div class="texture-upload__label">Upload</div>
+                    <input class="hidden-input" type="file" accept="image/*" data-opacity-texture-input />
+                  </div>
+                </div>
+                <div class="material-opacity material-opacity--color is-hidden" data-opacity-color>
+                  <div class="texture-upload texture-upload--readonly" data-opacity-color-target>
+                    <img
+                      class="texture-upload__image"
+                      data-opacity-color-image
+                      alt="Base color alpha preview"
+                      width="100"
+                      height="100"
+                    />
+                    <div class="texture-upload__label">Color Alpha</div>
+                  </div>
+                  <p class="material-opacity__note">Uses the base color texture alpha channel.</p>
+                </div>
+              </div>
+            </details>
+            <details class="material-section" open>
               <summary class="material-section__summary">Normal Map</summary>
               <div class="material-section__content">
                 <div class="texture-upload" data-normal-texture-target>
