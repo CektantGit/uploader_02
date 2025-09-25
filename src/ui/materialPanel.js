@@ -1452,9 +1452,15 @@ export class MaterialPanel {
       needsUpdate = true;
     }
 
-    this.ormChannelState.ao.scalar = aoIntensity;
-    this.ormChannelState.metalness.scalar = metalness;
-    this.ormChannelState.roughness.scalar = roughness;
+    const channelScalars = {
+      ao: aoIntensity,
+      metalness,
+      roughness,
+    };
+
+    for (const channel of ORM_CHANNELS) {
+      this.ormChannelState[channel.key].scalar = channelScalars[channel.key];
+    }
 
     const previousPreviews = {
       ao: this.ormChannelState.ao.texturePreview,
@@ -1476,6 +1482,7 @@ export class MaterialPanel {
       for (const channel of ORM_CHANNELS) {
         this.ormChannelState[channel.key].texture = null;
         this.ormChannelState[channel.key].texturePreview = WHITE_PREVIEW;
+        this.ormChannelState[channel.key].scalar = channelScalars[channel.key];
       }
       this.ormMode = 'packed';
     } else {
@@ -1484,6 +1491,7 @@ export class MaterialPanel {
       for (const channel of ORM_CHANNELS) {
         const texture = channelTextures[channel.key];
         this.ormChannelState[channel.key].texture = texture;
+        this.ormChannelState[channel.key].scalar = texture ? channelScalars[channel.key] : 1;
         if (texture) {
           const preview = getTexturePreview(texture) ?? previousPreviews[channel.key] ?? WHITE_PREVIEW;
           this.ormChannelState[channel.key].texturePreview = preview;
@@ -1542,12 +1550,19 @@ export class MaterialPanel {
     for (const channel of ORM_CHANNELS) {
       const refs = this.ormChannels[channel.key];
       const state = this.ormChannelState[channel.key];
-      const showSlider = this.ormMode === 'separate' && !state.texture;
+      const hasTexture = Boolean(state.texture);
+      const showSlider = this.ormMode === 'separate' && !hasTexture;
       if (refs.separate.sliderContainer) {
         refs.separate.sliderContainer.classList.toggle('is-hidden', !showSlider);
       }
       if (refs.separate.input) {
         refs.separate.input.disabled = this.ormMode !== 'separate';
+      }
+      if (refs.separate.slider) {
+        refs.separate.slider.disabled = this.ormMode !== 'separate' || !hasTexture;
+      }
+      if (refs.separate.number) {
+        refs.separate.number.disabled = this.ormMode !== 'separate' || !hasTexture;
       }
       if (refs.separate.remove) {
         refs.separate.remove.disabled = this.ormMode !== 'separate' || !state.texture;
@@ -1632,8 +1647,9 @@ export class MaterialPanel {
   #syncChannelInputs(channelKey, source) {
     const state = this.ormChannelState[channelKey];
     const refs = this.ormChannels[channelKey];
-    const sliderValue = state.scalar.toString();
-    const numberValue = state.scalar.toFixed(2);
+    const fallbackLocked = this.ormMode === 'separate' && !state.texture;
+    const sliderValue = fallbackLocked ? '1' : state.scalar.toString();
+    const numberValue = fallbackLocked ? '1.00' : state.scalar.toFixed(2);
     if (refs.separate.slider && source !== 'separate-slider') {
       refs.separate.slider.value = sliderValue;
     }
@@ -1691,8 +1707,12 @@ export class MaterialPanel {
         const state = this.ormChannelState[channel.key];
         const { mapProp, scalarProp, textureScalar } = this.ormChannels[channel.key].config;
         const texture = state.texture ?? null;
+        const hasTexture = Boolean(texture);
         this.activeMaterial[mapProp] = texture;
-        this.activeMaterial[scalarProp] = texture ? textureScalar : state.scalar;
+        if (!hasTexture) {
+          this.ormChannelState[channel.key].scalar = 1;
+        }
+        this.activeMaterial[scalarProp] = hasTexture ? textureScalar : 1;
       }
     } else {
       for (const channel of ORM_CHANNELS) {
@@ -1952,6 +1972,7 @@ export class MaterialPanel {
   #handleRemoveSeparateTexture(channelKey) {
     this.ormChannelState[channelKey].texture = null;
     this.ormChannelState[channelKey].texturePreview = WHITE_PREVIEW;
+    this.ormChannelState[channelKey].scalar = 1;
     if (this.ormMode === 'separate') {
       this.#applyOrmState();
     }
