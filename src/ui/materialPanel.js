@@ -1,4 +1,5 @@
 import {
+  CanvasTexture,
   Color,
   DataTexture,
   LinearFilter,
@@ -645,8 +646,10 @@ export class MaterialPanel {
 
     this.activeMesh = mesh;
     this.activeMaterial = material;
-    this.savedColorTexture = material.map ?? null;
-    this.savedColorPreview = getTexturePreview(material.map) ?? WHITE_PREVIEW;
+    material.userData = material.userData ?? {};
+    const { original: baseMap } = this.#updateBaseMapReferences();
+    this.savedColorTexture = baseMap ?? null;
+    this.savedColorPreview = getTexturePreview(baseMap ?? material.map) ?? WHITE_PREVIEW;
     this.colorMode = material.map ? 'texture' : 'color';
     this.#syncModeInputs();
 
@@ -1049,9 +1052,10 @@ export class MaterialPanel {
     }
     if (mode === 'color') {
       const map = this.activeMaterial.map ?? null;
+      const originalMap = this.#resolveOriginalBaseMap(map);
       if (map) {
-        this.savedColorTexture = map;
-        this.savedColorPreview = getTexturePreview(map) ?? WHITE_PREVIEW;
+        this.savedColorTexture = originalMap ?? map;
+        this.savedColorPreview = getTexturePreview(originalMap ?? map) ?? WHITE_PREVIEW;
       }
       if (this.activeMaterial.map) {
         this.activeMaterial.map = null;
@@ -1065,11 +1069,13 @@ export class MaterialPanel {
       }
       const activeMap = this.activeMaterial.map ?? null;
       if (activeMap) {
-        this.savedColorTexture = activeMap;
-        this.savedColorPreview = getTexturePreview(activeMap) ?? WHITE_PREVIEW;
+        const originalMap = this.#resolveOriginalBaseMap(activeMap);
+        this.savedColorTexture = originalMap ?? activeMap;
+        this.savedColorPreview = getTexturePreview(originalMap ?? activeMap) ?? WHITE_PREVIEW;
       }
       this.#ensureTextureColorNeutral();
     }
+    this.#updateBaseMapReferences();
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
     this.#handleColorTextureChange();
@@ -1162,62 +1168,184 @@ export class MaterialPanel {
   }
 
   /**
-   * Готовит материал к игнорированию альфа-канала базовой текстуры при необходимости.
-   * @param {(import('three').Material & { userData?: any; onBeforeCompile?: import('three').Material['onBeforeCompile']; customProgramCacheKey?: () => string })} material
+   * Возвращает исходную текстуру цвета без модификаций.
+   * @param {import('three').Texture | null} texture
+   * @returns {import('three').Texture | null}
    */
-  #ensureOpacityMapOverride(material) {
-    if (!material) {
-      return;
+  #resolveOriginalBaseMap(texture) {
+    if (
+      texture &&
+      texture.userData?.__baseMapOriginal &&
+      texture.userData.__baseMapOriginal.isTexture
+    ) {
+      return /** @type {import('three').Texture} */ (texture.userData.__baseMapOriginal);
     }
-    material.userData = material.userData ?? {};
-    if (material.userData.__opacityShaderPatched) {
-      return;
-    }
-
-    const previousOnBeforeCompile =
-      typeof material.onBeforeCompile === 'function' ? material.onBeforeCompile : null;
-
-    material.onBeforeCompile = (shader) => {
-      previousOnBeforeCompile?.call(material, shader);
-      const uniform = { value: Boolean(material.userData?.__ignoreBaseAlpha) };
-      shader.uniforms.uIgnoreBaseAlpha = uniform;
-      material.userData.__ignoreBaseAlphaUniform = uniform;
-      shader.fragmentShader = shader.fragmentShader.replace(
-        '#include <map_fragment>',
-        `#include <map_fragment>\n#if defined(USE_MAP)\n  if (uIgnoreBaseAlpha) {\n    diffuseColor.a = 1.0;\n  }\n#endif`
-      );
-    };
-
-    const previousCacheKey =
-      typeof material.customProgramCacheKey === 'function' ? material.customProgramCacheKey : null;
-    material.customProgramCacheKey = () => {
-      const base = previousCacheKey ? previousCacheKey.call(material) : '';
-      return `${base}|ignore-base-alpha`;
-    };
-
-    material.userData.__ignoreBaseAlphaUniform = null;
-    material.userData.__ignoreBaseAlpha = Boolean(material.userData.__ignoreBaseAlpha);
-    material.userData.__opacityShaderPatched = true;
-    material.needsUpdate = true;
+    return texture ?? null;
   }
 
   /**
-   * Управляет использованием альфа-канала базовой текстуры.
-   * @param {(import('three').Material & { userData?: any })} material
+   * Копирует базовые настройки текстуры в новую текстуру.
+   * @param {import('three').Texture} source
+   * @param {import('three').Texture} target
+   */
+  #copyTextureSettings(source, target) {
+    target.wrapS = source.wrapS;
+    target.wrapT = source.wrapT;
+    target.repeat.copy(source.repeat);
+    target.offset.copy(source.offset);
+    target.center.copy(source.center);
+    target.rotation = source.rotation;
+    target.magFilter = source.magFilter;
+    target.minFilter = source.minFilter;
+    target.anisotropy = source.anisotropy;
+    target.colorSpace = source.colorSpace;
+    target.flipY = source.flipY;
+    target.generateMipmaps = source.generateMipmaps;
+    target.premultiplyAlpha = source.premultiplyAlpha;
+  }
+
+  /**
+   * Создает копию текстуры с принудительно непрозрачным альфа-каналом.
+   * @param {import('three').Texture} texture
+   * @returns {import('three').Texture | null}
+   */
+  #createOpaqueBaseMap(texture) {
+    const normalized = normalizeImageLike(texture.image ?? null);
+    if (!normalized || !normalized.width || !normalized.height) {
+      return null;
+    }
+    const { source, width, height } = normalized;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) {
+      return null;
+    }
+    try {
+      context.drawImage(source, 0, 0, width, height, 0, 0, width, height);
+      const imageData = context.getImageData(0, 0, width, height);
+      const data = imageData.data;
+      for (let index = 3; index < data.length; index += 4) {
+        data[index] = 255;
+      }
+      context.putImageData(imageData, 0, 0);
+    } catch (error) {
+      console.warn('Не удалось создать непрозрачную копию текстуры', error);
+      return null;
+    }
+
+    const opaque = new CanvasTexture(canvas);
+    this.#copyTextureSettings(texture, opaque);
+    opaque.needsUpdate = true;
+    opaque.userData = { ...(texture.userData ?? {}) };
+    opaque.userData.__baseMapOriginal = texture;
+    opaque.userData.__ignoreBaseAlphaClone = true;
+    if (typeof opaque.userData.__hasAlpha !== 'boolean') {
+      opaque.userData.__hasAlpha = this.#textureHasAlpha(texture);
+    }
+    if (!opaque.userData.__previewUrl) {
+      const preview = texture.userData?.__previewUrl ?? getTexturePreview(texture);
+      if (preview) {
+        opaque.userData.__previewUrl = preview;
+      }
+    }
+    return opaque;
+  }
+
+  /**
+   * Переключает материал между оригинальной и непрозрачной текстурой цвета.
    * @param {boolean} ignore
    */
-  #setIgnoreColorTextureAlpha(material, ignore) {
-    if (!material) {
+  #applyBaseTextureAlphaUsage(ignore) {
+    if (!this.activeMaterial) {
       return;
     }
-    this.#ensureOpacityMapOverride(material);
+    const material = this.activeMaterial;
     material.userData = material.userData ?? {};
-    const normalized = Boolean(ignore);
-    material.userData.__ignoreBaseAlpha = normalized;
-    const uniform = material.userData.__ignoreBaseAlphaUniform;
-    if (uniform) {
-      uniform.value = normalized;
+    const currentMap = /** @type {import('three').Texture | null} */ (material.map ?? null);
+    if (currentMap) {
+      currentMap.userData = currentMap.userData ?? {};
+      if (!currentMap.userData.__baseMapOriginal || !currentMap.userData.__baseMapOriginal.isTexture) {
+        currentMap.userData.__baseMapOriginal = currentMap;
+      }
     }
+    const originalMap = this.#resolveOriginalBaseMap(currentMap);
+
+    material.userData.__baseMapOriginal = originalMap ?? null;
+
+    if (!originalMap) {
+      material.userData.__baseMapOpaque = null;
+      if (currentMap && material.map) {
+        material.map = null;
+        material.needsUpdate = true;
+      }
+      return;
+    }
+
+    let cachedOpaque = material.userData.__baseMapOpaque ?? null;
+    if (
+      cachedOpaque &&
+      cachedOpaque.userData?.__baseMapOriginal !== originalMap
+    ) {
+      cachedOpaque = null;
+      material.userData.__baseMapOpaque = null;
+    }
+
+    if (ignore) {
+      if (!cachedOpaque) {
+        cachedOpaque = this.#createOpaqueBaseMap(originalMap);
+        if (cachedOpaque) {
+          material.userData.__baseMapOpaque = cachedOpaque;
+        }
+      }
+      const targetMap = cachedOpaque ?? originalMap;
+      if (material.map !== targetMap) {
+        material.map = targetMap;
+        material.needsUpdate = true;
+      }
+    } else {
+      if (cachedOpaque && material.userData.__baseMapOpaque !== cachedOpaque) {
+        material.userData.__baseMapOpaque = cachedOpaque;
+      }
+      if (material.map !== originalMap) {
+        material.map = originalMap;
+        material.needsUpdate = true;
+      }
+    }
+    this.#updateBaseMapReferences();
+  }
+
+  /**
+   * Актуализирует ссылки на оригинальную и вспомогательную текстуры цвета.
+   * @returns {{ current: import('three').Texture | null; original: import('three').Texture | null }}
+   */
+  #updateBaseMapReferences() {
+    if (!this.activeMaterial) {
+      return { current: null, original: null };
+    }
+    const material = this.activeMaterial;
+    material.userData = material.userData ?? {};
+    const currentMap = /** @type {import('three').Texture | null} */ (material.map ?? null);
+    const originalMap = this.#resolveOriginalBaseMap(currentMap);
+    material.userData.__baseMapOriginal = originalMap ?? null;
+
+    if (
+      currentMap &&
+      originalMap &&
+      currentMap !== originalMap &&
+      currentMap.userData?.__ignoreBaseAlphaClone &&
+      currentMap.userData.__baseMapOriginal === originalMap
+    ) {
+      material.userData.__baseMapOpaque = currentMap;
+    } else if (
+      material.userData.__baseMapOpaque &&
+      material.userData.__baseMapOpaque.userData?.__baseMapOriginal !== originalMap
+    ) {
+      material.userData.__baseMapOpaque = null;
+    }
+
+    return { current: currentMap, original: originalMap };
   }
 
   /**
@@ -1256,7 +1384,7 @@ export class MaterialPanel {
       }
     };
 
-    this.#setIgnoreColorTextureAlpha(material, this.opacityMode === 'slider');
+    this.#applyBaseTextureAlphaUsage(this.opacityMode === 'slider');
 
     if (this.opacityMode === 'slider') {
       if (material.alphaMap) {
@@ -1423,14 +1551,18 @@ export class MaterialPanel {
    * Обрабатывает изменения текстуры цвета.
    */
   #handleColorTextureChange() {
-    const map = this.activeMaterial?.map ?? null;
-    this.colorTextureHasAlpha = Boolean(map && this.#textureHasAlpha(map));
+    const refs = this.#updateBaseMapReferences();
+    const map = refs.current;
+    const original = refs.original ?? map;
+    this.colorTextureHasAlpha = Boolean(original && this.#textureHasAlpha(original));
     this.#updateOpacityColorPreview();
     const modeChanged = this.#ensureValidOpacityMode();
     this.#updateOpacityAvailability();
     this.#updateOpacityModeView();
     if (this.activeMaterial && (modeChanged || this.opacityMode === 'color-alpha')) {
       this.#applyOpacityState();
+    } else if (this.activeMaterial && this.opacityMode === 'slider') {
+      this.#applyBaseTextureAlphaUsage(true);
     }
     this.#queueBakedUpdate();
   }
@@ -1454,7 +1586,20 @@ export class MaterialPanel {
         ? clamp01(material.userData.__opacityValue)
         : clamp01(typeof material.opacity === 'number' ? material.opacity : 1);
     this.opacityValue = storedValue;
-    this.colorTextureHasAlpha = Boolean(material.map && this.#textureHasAlpha(/** @type {import('three').Texture} */ (material.map)));
+    const currentMap = /** @type {import('three').Texture | null} */ (material.map ?? null);
+    const originalMap = this.#resolveOriginalBaseMap(currentMap);
+    material.userData = material.userData ?? {};
+    material.userData.__baseMapOriginal = originalMap ?? null;
+    if (
+      material.userData.__baseMapOpaque &&
+      material.userData.__baseMapOpaque.userData?.__baseMapOriginal !== originalMap
+    ) {
+      material.userData.__baseMapOpaque = null;
+    }
+    if (currentMap && currentMap.userData?.__ignoreBaseAlphaClone && currentMap.userData.__baseMapOriginal === originalMap) {
+      material.userData.__baseMapOpaque = currentMap;
+    }
+    this.colorTextureHasAlpha = Boolean(originalMap && this.#textureHasAlpha(originalMap));
     this.#updateOpacityColorPreview();
     let resolvedMode = this.opacityMode;
     const storedMode = material.userData?.__opacityMode;
@@ -2028,6 +2173,8 @@ export class MaterialPanel {
     }
     try {
       const texture = await this.#loadTexture(file, SRGBColorSpace);
+      texture.userData = texture.userData ?? {};
+      texture.userData.__baseMapOriginal = texture;
       this.activeMaterial.map = texture;
       this.activeMaterial.needsUpdate = true;
       this.savedColorTexture = texture;
@@ -2140,10 +2287,15 @@ export class MaterialPanel {
       this.activeMaterial.map = null;
       this.activeMaterial.needsUpdate = true;
     }
+    if (this.activeMaterial.userData) {
+      this.activeMaterial.userData.__baseMapOriginal = null;
+      this.activeMaterial.userData.__baseMapOpaque = null;
+    }
     this.savedColorTexture = null;
     this.savedColorPreview = WHITE_PREVIEW;
     this.colorMode = 'color';
     this.#restoreSavedColor();
+    this.#updateBaseMapReferences();
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
     this.#handleColorTextureChange();
