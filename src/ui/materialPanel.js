@@ -11,6 +11,8 @@ import {
 
 const WHITE_PREVIEW = createSolidColorDataUrl(100, 100, [255, 255, 255, 255]);
 const NEUTRAL_NORMAL_PREVIEW = createSolidColorDataUrl(100, 100, [128, 128, 255, 255]);
+const DEFAULT_ORM_PREVIEW = createSolidColorDataUrl(100, 100, [255, 255, 0, 255]);
+const BAKED_PREVIEW_SIZE = 100;
 let neutralNormalTexture = null;
 
 /**
@@ -107,6 +109,70 @@ function scalarToPreview(value) {
   const clamped = clamp01(value);
   const level = Math.round(clamped * 255);
   return createSolidColorDataUrl(100, 100, [level, level, level, 255]);
+}
+
+/**
+ * Преобразует hex-цвет в массив компонент.
+ * @param {string} hex
+ * @returns {[number, number, number]}
+ */
+function parseHexColor(hex) {
+  if (!hex) {
+    return [255, 255, 255];
+  }
+  let normalized = hex.trim();
+  if (normalized.startsWith('#')) {
+    normalized = normalized.slice(1);
+  }
+  if (normalized.length === 3) {
+    normalized = normalized
+      .split('')
+      .map((component) => component + component)
+      .join('');
+  }
+  if (normalized.length !== 6) {
+    return [255, 255, 255];
+  }
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  if ([red, green, blue].some((value) => !Number.isFinite(value))) {
+    return [255, 255, 255];
+  }
+  return [red, green, blue];
+}
+
+/**
+ * Ограничивает значение канала в пределах 0-255.
+ * @param {number} value
+ * @returns {number}
+ */
+function clampChannel(value) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  if (value < 0) {
+    return 0;
+  }
+  if (value > 255) {
+    return 255;
+  }
+  return Math.round(value);
+}
+
+/**
+ * Возвращает яркость пикселя.
+ * @param {number} r
+ * @param {number} g
+ * @param {number} b
+ * @returns {number}
+ */
+function getLuminance(r, g, b) {
+  if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(b)) {
+    return 255;
+  }
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return clampChannel(luminance);
 }
 
 /**
@@ -341,6 +407,7 @@ function getTexturePreview(texture) {
  * Правая панель настроек материала.
  */
 export class MaterialPanel {
+  #bakedUpdateRequestId = 0;
   /**
    * @param {HTMLElement} root
    */
@@ -386,6 +453,9 @@ export class MaterialPanel {
     this.ormScalarContainer = /** @type {HTMLElement | null} */ (root.querySelector('[data-orm-scalar]'));
     this.messageElement = /** @type {HTMLElement | null} */ (root.querySelector('[data-material-message]'));
     this.bodyElement = /** @type {HTMLElement | null} */ (root.querySelector('[data-material-body]'));
+    this.bakedColorImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-baked-color-image]'));
+    this.bakedNormalImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-baked-normal-image]'));
+    this.bakedOrmImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-baked-orm-image]'));
 
     /** @type {Record<OrmChannelKey, { config: typeof ORM_CHANNELS[number]; separate: { target: HTMLElement | null; image: HTMLImageElement | null; input: HTMLInputElement | null; remove: HTMLButtonElement | null; sliderContainer: HTMLElement | null; slider: HTMLInputElement | null; number: HTMLInputElement | null; }; scalar: { image: HTMLImageElement | null; slider: HTMLInputElement | null; number: HTMLInputElement | null; }; }>} */
     this.ormChannels = /** @type {any} */ ({});
@@ -455,6 +525,12 @@ export class MaterialPanel {
         scalar: 1,
       },
     };
+    /** @type {string} */
+    this.bakedColorPreview = WHITE_PREVIEW;
+    /** @type {string} */
+    this.bakedNormalPreview = NEUTRAL_NORMAL_PREVIEW;
+    /** @type {string} */
+    this.bakedOrmPreview = DEFAULT_ORM_PREVIEW;
 
     if (this.colorInput) {
       this.colorInput.value = this.savedColorHex;
@@ -532,6 +608,8 @@ export class MaterialPanel {
         channelRefs.scalar.number.value = channel.defaultScalar.toFixed(2);
       }
     }
+
+    this.#resetBakedPreviews();
 
     this.#bindEvents();
     this.#updateColorModeView();
@@ -611,6 +689,7 @@ export class MaterialPanel {
     this.#updateNormalPreview();
     this.#updateOrmModeView();
     this.#showBody();
+    this.#queueBakedUpdate();
   }
 
   /**
@@ -989,6 +1068,7 @@ export class MaterialPanel {
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
     this.#handleColorTextureChange();
+    this.#queueBakedUpdate();
   }
 
   /**
@@ -1109,6 +1189,7 @@ export class MaterialPanel {
       material.transparent = true;
     }
     material.needsUpdate = true;
+    this.#queueBakedUpdate();
   }
 
   /**
@@ -1238,6 +1319,7 @@ export class MaterialPanel {
     if (this.activeMaterial && (modeChanged || this.opacityMode === 'color-alpha')) {
       this.#applyOpacityState();
     }
+    this.#queueBakedUpdate();
   }
 
   /**
@@ -1317,6 +1399,7 @@ export class MaterialPanel {
       this.#applyOpacityState();
     }
     this.#updateOpacityTexturePreview();
+    this.#queueBakedUpdate();
   }
 
   /**
@@ -1581,6 +1664,7 @@ export class MaterialPanel {
     this.#syncChannelInputs(channelKey, source);
     this.#updateChannelPreviews(channelKey);
     this.#applyOrmState();
+    this.#queueBakedUpdate();
   }
 
   /**
@@ -1620,6 +1704,7 @@ export class MaterialPanel {
     }
 
     this.activeMaterial.needsUpdate = true;
+    this.#queueBakedUpdate();
   }
 
   /**
@@ -1694,6 +1779,7 @@ export class MaterialPanel {
         this.activeMaterial.userData.__baseColorBackup = this.savedColorHex;
       }
       this.#refreshColorPreview();
+      this.#queueBakedUpdate();
     } catch (error) {
       console.warn('Не удалось применить цвет', error);
     }
@@ -1782,6 +1868,7 @@ export class MaterialPanel {
       this.#updateColorModeView();
       this.#updateBaseTexturePreview();
       this.#handleColorTextureChange();
+      this.#queueBakedUpdate();
     } catch (error) {
       console.error('Не удалось загрузить текстуру цвета', error);
     }
@@ -1800,6 +1887,7 @@ export class MaterialPanel {
       this.activeMaterial.normalMap = texture;
       this.activeMaterial.needsUpdate = true;
       this.#updateNormalPreview();
+      this.#queueBakedUpdate();
     } catch (error) {
       console.error('Не удалось загрузить нормал-карту', error);
     }
@@ -1833,6 +1921,7 @@ export class MaterialPanel {
       this.#applyOrmState();
     }
     this.#updateOrmModeView();
+    this.#queueBakedUpdate();
   }
 
   /**
@@ -1867,6 +1956,7 @@ export class MaterialPanel {
       this.#applyOrmState();
     }
     this.#updateOrmModeView();
+    this.#queueBakedUpdate();
   }
 
   /**
@@ -1887,6 +1977,7 @@ export class MaterialPanel {
     this.#updateColorModeView();
     this.#updateBaseTexturePreview();
     this.#handleColorTextureChange();
+    this.#queueBakedUpdate();
   }
 
   /**
@@ -1909,6 +2000,7 @@ export class MaterialPanel {
     this.activeMaterial.needsUpdate = true;
     this.#updateNormalStrengthValue(true);
     this.#updateNormalPreview();
+    this.#queueBakedUpdate();
   }
 
   /**
@@ -1930,6 +2022,7 @@ export class MaterialPanel {
     }
     this.normalStrengthInput.value = String(clamped);
     this.#updateNormalStrengthValue();
+    this.#queueBakedUpdate();
   }
 
   /**
@@ -2031,6 +2124,439 @@ export class MaterialPanel {
       this.#syncChannelInputs(channel.key, null);
     }
     this.#updateOrmModeView();
+    this.#resetBakedPreviews();
+  }
+
+  /**
+   * Сбрасывает превью запеченных текстур к состоянию по умолчанию.
+   */
+  #resetBakedPreviews() {
+    this.bakedColorPreview = WHITE_PREVIEW;
+    this.bakedNormalPreview = NEUTRAL_NORMAL_PREVIEW;
+    this.bakedOrmPreview = DEFAULT_ORM_PREVIEW;
+    if (this.bakedColorImage) {
+      this.bakedColorImage.src = this.bakedColorPreview;
+    }
+    if (this.bakedNormalImage) {
+      this.bakedNormalImage.src = this.bakedNormalPreview;
+    }
+    if (this.bakedOrmImage) {
+      this.bakedOrmImage.src = this.bakedOrmPreview;
+    }
+  }
+
+  /**
+   * Запускает обновление превью запеченных текстур.
+   */
+  #queueBakedUpdate() {
+    this.#updateBakedTextures().catch((error) => {
+      console.error('Не удалось обновить превью запеченных текстур', error);
+      this.#resetBakedPreviews();
+    });
+  }
+
+  /**
+   * Пересчитывает изображения запеченных текстур.
+   */
+  async #updateBakedTextures() {
+    const requestId = ++this.#bakedUpdateRequestId;
+    try {
+      const [color, normal, orm] = await Promise.all([
+        this.#generateBakedColorPreview(BAKED_PREVIEW_SIZE, BAKED_PREVIEW_SIZE),
+        this.#generateBakedNormalPreview(BAKED_PREVIEW_SIZE, BAKED_PREVIEW_SIZE),
+        this.#generateBakedOrmPreview(BAKED_PREVIEW_SIZE, BAKED_PREVIEW_SIZE),
+      ]);
+      if (requestId !== this.#bakedUpdateRequestId) {
+        return;
+      }
+      const colorPreview = color || WHITE_PREVIEW;
+      const normalPreview = normal || NEUTRAL_NORMAL_PREVIEW;
+      const ormPreview = orm || DEFAULT_ORM_PREVIEW;
+      this.bakedColorPreview = colorPreview;
+      this.bakedNormalPreview = normalPreview;
+      this.bakedOrmPreview = ormPreview;
+      if (this.bakedColorImage) {
+        this.bakedColorImage.src = colorPreview;
+      }
+      if (this.bakedNormalImage) {
+        this.bakedNormalImage.src = normalPreview;
+      }
+      if (this.bakedOrmImage) {
+        this.bakedOrmImage.src = ormPreview;
+      }
+    } catch (error) {
+      if (requestId === this.#bakedUpdateRequestId) {
+        console.error('Не удалось обновить превью запеченных текстур', error);
+        this.#resetBakedPreviews();
+      }
+    }
+  }
+
+  /**
+   * Формирует запеченную текстуру цвета.
+   * @param {number} width
+   * @param {number} height
+   * @returns {Promise<string>}
+   */
+  async #generateBakedColorPreview(width, height) {
+    try {
+      if (!width || !height) {
+        return this.bakedColorPreview || WHITE_PREVIEW;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) {
+        return this.bakedColorPreview || WHITE_PREVIEW;
+      }
+
+      let imageData = null;
+      const materialMap = this.activeMaterial?.map ?? null;
+      if (this.colorMode === 'texture' && materialMap) {
+        imageData = await this.#sampleTextureImageData(materialMap, width, height);
+      }
+
+      if (!imageData) {
+        const colorHex =
+          this.colorMode === 'color'
+            ? this.colorInput?.value || this.savedColorHex || '#ffffff'
+            : '#ffffff';
+        const [r, g, b] = parseHexColor(colorHex);
+        imageData = context.createImageData(width, height);
+        const data = imageData.data;
+        for (let index = 0; index < data.length; index += 4) {
+          data[index] = r;
+          data[index + 1] = g;
+          data[index + 2] = b;
+          data[index + 3] = 255;
+        }
+      }
+
+      if (this.opacityMode === 'slider') {
+        const opacity = clamp01(this.opacityValue);
+        if (opacity < 0.999) {
+          const data = imageData.data;
+          for (let index = 3; index < data.length; index += 4) {
+            data[index] = clampChannel((data[index] ?? 255) * opacity);
+          }
+        }
+      } else if (this.opacityMode === 'texture' && this.opacityTexture) {
+        const maskData = await this.#sampleTextureImageData(this.opacityTexture, width, height);
+        if (maskData) {
+          const data = imageData.data;
+          const mask = maskData.data;
+          for (let index = 0; index < data.length; index += 4) {
+            const luminance = getLuminance(mask[index], mask[index + 1], mask[index + 2]) / 255;
+            data[index + 3] = clampChannel((data[index + 3] ?? 255) * luminance);
+          }
+        }
+      }
+
+      const data = imageData.data;
+      for (let index = 3; index < data.length; index += 4) {
+        data[index] = clampChannel(data[index] ?? 255);
+      }
+
+      context.putImageData(imageData, 0, 0);
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.warn('Не удалось подготовить запеченную текстуру цвета', error);
+      return this.bakedColorPreview || WHITE_PREVIEW;
+    }
+  }
+
+  /**
+   * Формирует запеченную нормал-карту.
+   * @param {number} width
+   * @param {number} height
+   * @returns {Promise<string>}
+   */
+  async #generateBakedNormalPreview(width, height) {
+    try {
+      if (!width || !height) {
+        return this.bakedNormalPreview || NEUTRAL_NORMAL_PREVIEW;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) {
+        return this.bakedNormalPreview || NEUTRAL_NORMAL_PREVIEW;
+      }
+
+      let imageData = null;
+      const normalMap = this.activeMaterial?.normalMap ?? null;
+      if (normalMap) {
+        imageData = await this.#sampleTextureImageData(normalMap, width, height);
+      }
+      if (!imageData) {
+        imageData = context.createImageData(width, height);
+        const data = imageData.data;
+        for (let index = 0; index < data.length; index += 4) {
+          data[index] = 128;
+          data[index + 1] = 128;
+          data[index + 2] = 255;
+          data[index + 3] = 255;
+        }
+      }
+
+      let strength = 1;
+      if (this.normalStrengthInput) {
+        const parsed = Number.parseFloat(this.normalStrengthInput.value);
+        if (Number.isFinite(parsed)) {
+          strength = parsed;
+        }
+      } else if (this.activeMaterial?.normalScale && Number.isFinite(this.activeMaterial.normalScale.x)) {
+        strength = this.activeMaterial.normalScale.x;
+      }
+      const normalizedStrength = Math.min(3, Math.max(0, strength));
+
+      const data = imageData.data;
+      for (let index = 0; index < data.length; index += 4) {
+        const baseR = data[index];
+        const baseG = data[index + 1];
+        const baseB = data[index + 2];
+        data[index] = clampChannel(128 + (baseR - 128) * normalizedStrength);
+        data[index + 1] = clampChannel(128 + (baseG - 128) * normalizedStrength);
+        data[index + 2] = clampChannel(255 + (baseB - 255) * normalizedStrength);
+        data[index + 3] = 255;
+      }
+
+      context.putImageData(imageData, 0, 0);
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.warn('Не удалось подготовить запеченную нормал-карту', error);
+      return this.bakedNormalPreview || NEUTRAL_NORMAL_PREVIEW;
+    }
+  }
+
+  /**
+   * Формирует запеченную ORM-текстуру.
+   * @param {number} width
+   * @param {number} height
+   * @returns {Promise<string>}
+   */
+  async #generateBakedOrmPreview(width, height) {
+    try {
+      if (!width || !height) {
+        return this.bakedOrmPreview || DEFAULT_ORM_PREVIEW;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) {
+        return this.bakedOrmPreview || DEFAULT_ORM_PREVIEW;
+      }
+
+      if (this.ormMode === 'packed' && this.ormPackedTexture) {
+        const packedData = await this.#sampleTextureImageData(this.ormPackedTexture, width, height);
+        if (packedData) {
+          const packedPixels = packedData.data;
+          for (let index = 3; index < packedPixels.length; index += 4) {
+            packedPixels[index] = 255;
+          }
+          context.putImageData(packedData, 0, 0);
+          return canvas.toDataURL('image/png');
+        }
+      }
+
+      const imageData = context.createImageData(width, height);
+      const totalPixels = width * height;
+      const [aoValues, roughnessValues, metalnessValues] = await Promise.all([
+        this.#getOrmChannelValues('ao', width, height),
+        this.#getOrmChannelValues('roughness', width, height),
+        this.#getOrmChannelValues('metalness', width, height),
+      ]);
+
+      const pixels = imageData.data;
+      for (let index = 0; index < totalPixels; index += 1) {
+        const offset = index * 4;
+        pixels[offset] = aoValues[index] ?? 0;
+        pixels[offset + 1] = roughnessValues[index] ?? 0;
+        pixels[offset + 2] = metalnessValues[index] ?? 0;
+        pixels[offset + 3] = 255;
+      }
+
+      context.putImageData(imageData, 0, 0);
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.warn('Не удалось подготовить запеченную ORM-текстуру', error);
+      return this.bakedOrmPreview || DEFAULT_ORM_PREVIEW;
+    }
+  }
+
+  /**
+   * Возвращает значения канала ORM.
+   * @param {OrmChannelKey} channelKey
+   * @param {number} width
+   * @param {number} height
+   * @returns {Promise<Uint8ClampedArray>}
+   */
+  async #getOrmChannelValues(channelKey, width, height) {
+    const totalPixels = width * height;
+    const values = new Uint8ClampedArray(totalPixels);
+    const state = this.ormChannelState[channelKey];
+    if (!state) {
+      return values;
+    }
+
+    const useTexture = this.ormMode === 'separate' && Boolean(state.texture);
+    if (useTexture && state.texture) {
+      const textureData = await this.#sampleTextureImageData(state.texture, width, height);
+      if (textureData) {
+        const data = textureData.data;
+        for (let index = 0; index < totalPixels; index += 1) {
+          const offset = index * 4;
+          values[index] = clampChannel(data[offset]);
+        }
+        return values;
+      }
+    }
+
+    const scalarLevel = clampChannel(clamp01(state.scalar) * 255);
+    values.fill(scalarLevel);
+    return values;
+  }
+
+  /**
+   * Считывает данные изображения текстуры.
+   * @param {import('three').Texture | null} texture
+   * @param {number} width
+   * @param {number} height
+   * @returns {Promise<ImageData | null>}
+   */
+  async #sampleTextureImageData(texture, width, height) {
+    if (!texture || !width || !height) {
+      return null;
+    }
+    try {
+      if (texture.image) {
+        const normalized = normalizeImageLike(texture.image);
+        if (normalized && normalized.width && normalized.height) {
+          const sampled = await this.#drawSourceToImageData(
+            normalized.source,
+            normalized.width,
+            normalized.height,
+            width,
+            height,
+          );
+          if (sampled) {
+            return sampled;
+          }
+        }
+      }
+
+      const previewUrl = typeof texture.userData?.__previewUrl === 'string' ? texture.userData.__previewUrl : null;
+      if (previewUrl) {
+        const fallback = await this.#loadImageDataFromUrl(previewUrl, width, height);
+        if (fallback) {
+          return fallback;
+        }
+      }
+    } catch (error) {
+      console.warn('Не удалось считать данные текстуры', error);
+    }
+    return null;
+  }
+
+  /**
+   * Рисует источник на канвасе и возвращает ImageData.
+   * @param {CanvasImageSource} source
+   * @param {number} sourceWidth
+   * @param {number} sourceHeight
+   * @param {number} width
+   * @param {number} height
+   * @returns {Promise<ImageData | null>}
+   */
+  async #drawSourceToImageData(source, sourceWidth, sourceHeight, width, height) {
+    if (!source || !sourceWidth || !sourceHeight || !width || !height) {
+      return null;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) {
+      return null;
+    }
+    try {
+      await this.#ensureImageSourceReady(source);
+      context.drawImage(source, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
+      return context.getImageData(0, 0, width, height);
+    } catch (error) {
+      console.warn('Не удалось отрисовать источник изображения', error);
+      return null;
+    }
+  }
+
+  /**
+   * Загружает изображение по URL и возвращает его данные.
+   * @param {string | null} url
+   * @param {number} width
+   * @param {number} height
+   * @returns {Promise<ImageData | null>}
+   */
+  async #loadImageDataFromUrl(url, width, height) {
+    if (!url) {
+      return null;
+    }
+    return new Promise((resolve) => {
+      const image = new Image();
+      image.crossOrigin = 'anonymous';
+      image.decoding = 'async';
+      const cleanup = () => {
+        image.onload = null;
+        image.onerror = null;
+      };
+      image.onload = async () => {
+        cleanup();
+        const sourceWidth = image.naturalWidth || image.width;
+        const sourceHeight = image.naturalHeight || image.height;
+        const sampled = await this.#drawSourceToImageData(
+          image,
+          sourceWidth,
+          sourceHeight,
+          width,
+          height,
+        );
+        resolve(sampled);
+      };
+      image.onerror = () => {
+        cleanup();
+        resolve(null);
+      };
+      image.src = url;
+    });
+  }
+
+  /**
+   * Гарантирует готовность источника изображения к отрисовке.
+   * @param {CanvasImageSource} source
+   * @returns {Promise<void>}
+   */
+  async #ensureImageSourceReady(source) {
+    if (typeof HTMLImageElement !== 'undefined' && source instanceof HTMLImageElement) {
+      if (!source.complete || !source.naturalWidth || !source.naturalHeight) {
+        await new Promise((resolve) => {
+          const finalize = () => {
+            source.removeEventListener('load', finalize);
+            source.removeEventListener('error', finalize);
+            resolve();
+          };
+          source.addEventListener('load', finalize, { once: true });
+          source.addEventListener('error', finalize, { once: true });
+        });
+      }
+      if (typeof source.decode === 'function') {
+        try {
+          await source.decode();
+        } catch (error) {
+          console.warn('Не удалось декодировать изображение', error);
+        }
+      }
+    }
   }
 
   /**

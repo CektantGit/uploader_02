@@ -482,6 +482,28 @@ canvas#scene {
   gap: 16px;
 }
 
+.material-baked {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 16px;
+}
+
+.material-baked__item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.material-baked__label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+}
+
 .material-orm__channel {
   display: flex;
   flex-direction: column;
