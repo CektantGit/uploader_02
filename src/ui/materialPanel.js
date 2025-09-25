@@ -1384,7 +1384,8 @@ export class MaterialPanel {
       }
     };
 
-    this.#applyBaseTextureAlphaUsage(this.opacityMode === 'slider');
+    const ignoreBaseAlpha = this.opacityMode !== 'color-alpha';
+    this.#applyBaseTextureAlphaUsage(ignoreBaseAlpha);
 
     if (this.opacityMode === 'slider') {
       if (material.alphaMap) {
@@ -1559,10 +1560,13 @@ export class MaterialPanel {
     const modeChanged = this.#ensureValidOpacityMode();
     this.#updateOpacityAvailability();
     this.#updateOpacityModeView();
-    if (this.activeMaterial && (modeChanged || this.opacityMode === 'color-alpha')) {
-      this.#applyOpacityState();
-    } else if (this.activeMaterial && this.opacityMode === 'slider') {
-      this.#applyBaseTextureAlphaUsage(true);
+    if (this.activeMaterial) {
+      if (modeChanged || this.opacityMode === 'color-alpha') {
+        this.#applyOpacityState();
+      } else {
+        const ignoreBaseAlpha = this.opacityMode !== 'color-alpha';
+        this.#applyBaseTextureAlphaUsage(ignoreBaseAlpha);
+      }
     }
     this.#queueBakedUpdate();
   }
