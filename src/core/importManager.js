@@ -529,8 +529,18 @@ export class ImportManager {
       meshMaterial.opacity = opacity;
       needsUpdate = true;
     }
+    const alphaTest = clamp(
+      typeof meshMaterial.alphaTest === 'number' ? meshMaterial.alphaTest : 0,
+      0,
+      1,
+    );
+    const hasAlphaMask = alphaTest > 0;
+    if (meshMaterial.alphaTest !== alphaTest) {
+      meshMaterial.alphaTest = alphaTest;
+      needsUpdate = true;
+    }
     const shouldBeTransparent =
-      Boolean(meshMaterial.transparent) || opacity < 1 || Boolean(meshMaterial.alphaMap);
+      !hasAlphaMask && (Boolean(meshMaterial.transparent) || opacity < 1 || Boolean(meshMaterial.alphaMap));
     if (meshMaterial.transparent !== shouldBeTransparent) {
       meshMaterial.transparent = shouldBeTransparent;
       needsUpdate = true;
@@ -538,6 +548,16 @@ export class ImportManager {
     const desiredBlending = shouldBeTransparent ? NormalBlending : NoBlending;
     if (meshMaterial.blending !== desiredBlending) {
       meshMaterial.blending = desiredBlending;
+      needsUpdate = true;
+    }
+    const desiredAlphaMode = hasAlphaMask ? 'MASK' : shouldBeTransparent ? 'BLEND' : 'OPAQUE';
+    meshMaterial.userData = meshMaterial.userData ?? {};
+    if (meshMaterial.userData.alphaMode !== desiredAlphaMode) {
+      meshMaterial.userData.alphaMode = desiredAlphaMode;
+      needsUpdate = true;
+    }
+    if (!hasAlphaMask && meshMaterial.alphaTest !== 0) {
+      meshMaterial.alphaTest = 0;
       needsUpdate = true;
     }
 

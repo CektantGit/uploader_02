@@ -1173,6 +1173,24 @@ export class MaterialPanel {
     material.userData.__opacityMode = this.opacityMode;
     material.userData.__opacityValue = this.opacityValue;
     material.userData.__useColorAlpha = this.opacityMode === 'color-alpha';
+
+    const currentAlphaTest =
+      typeof material.alphaTest === 'number' && Number.isFinite(material.alphaTest)
+        ? material.alphaTest
+        : 0;
+
+    const setAlphaMode = (mode) => {
+      if (material.userData.alphaMode !== mode) {
+        material.userData.alphaMode = mode;
+      }
+    };
+
+    const clearAlphaMask = () => {
+      if (typeof material.alphaTest !== 'number' || material.alphaTest !== 0) {
+        material.alphaTest = 0;
+      }
+    };
+
     if (this.opacityMode === 'slider') {
       if (material.alphaMap) {
         material.alphaMap = null;
@@ -1181,13 +1199,24 @@ export class MaterialPanel {
       material.opacity = fullyOpaque ? 1 : this.opacityValue;
       material.transparent = !fullyOpaque;
       material.blending = fullyOpaque ? NoBlending : NormalBlending;
+      clearAlphaMask();
+      setAlphaMode(fullyOpaque ? 'OPAQUE' : 'BLEND');
     } else if (this.opacityMode === 'texture') {
       const texture = this.opacityTexture ?? null;
       material.alphaMap = texture;
       material.opacity = 1;
       const hasTexture = Boolean(texture);
-      material.transparent = hasTexture;
-      material.blending = hasTexture ? NormalBlending : NoBlending;
+      const useMask = hasTexture && currentAlphaTest > 0;
+      if (useMask) {
+        material.transparent = false;
+        material.blending = NoBlending;
+        setAlphaMode('MASK');
+      } else {
+        material.transparent = hasTexture;
+        material.blending = hasTexture ? NormalBlending : NoBlending;
+        clearAlphaMask();
+        setAlphaMode(hasTexture ? 'BLEND' : 'OPAQUE');
+      }
       if (texture) {
         texture.needsUpdate = true;
       }
@@ -1198,6 +1227,8 @@ export class MaterialPanel {
       material.opacity = 1;
       material.transparent = true;
       material.blending = NormalBlending;
+      clearAlphaMask();
+      setAlphaMode('BLEND');
     }
     material.needsUpdate = true;
     this.#queueBakedUpdate();
@@ -1521,18 +1552,28 @@ export class MaterialPanel {
     } else {
       this.ormPackedTexture = null;
       this.ormPackedPreview = WHITE_PREVIEW;
-      for (const channel of ORM_CHANNELS) {
-        const texture = channelTextures[channel.key];
-        this.ormChannelState[channel.key].texture = texture;
-        this.ormChannelState[channel.key].scalar = texture ? channelScalars[channel.key] : 1;
-        if (texture) {
-          const preview = getTexturePreview(texture) ?? previousPreviews[channel.key] ?? WHITE_PREVIEW;
-          this.ormChannelState[channel.key].texturePreview = preview;
-        } else {
-          this.ormChannelState[channel.key].texturePreview = WHITE_PREVIEW;
+      const hasSeparateTextures = Boolean(channelTextures.ao || channelTextures.metalness || channelTextures.roughness);
+      if (hasSeparateTextures) {
+        for (const channel of ORM_CHANNELS) {
+          const texture = channelTextures[channel.key];
+          this.ormChannelState[channel.key].texture = texture;
+          this.ormChannelState[channel.key].scalar = texture ? channelScalars[channel.key] : 1;
+          if (texture) {
+            const preview = getTexturePreview(texture) ?? previousPreviews[channel.key] ?? WHITE_PREVIEW;
+            this.ormChannelState[channel.key].texturePreview = preview;
+          } else {
+            this.ormChannelState[channel.key].texturePreview = WHITE_PREVIEW;
+          }
         }
+        this.ormMode = 'separate';
+      } else {
+        for (const channel of ORM_CHANNELS) {
+          this.ormChannelState[channel.key].texture = null;
+          this.ormChannelState[channel.key].texturePreview = WHITE_PREVIEW;
+          this.ormChannelState[channel.key].scalar = channelScalars[channel.key];
+        }
+        this.ormMode = 'scalar';
       }
-      this.ormMode = channelTextures.ao || channelTextures.metalness || channelTextures.roughness ? 'separate' : 'scalar';
     }
 
     for (const channel of ORM_CHANNELS) {
