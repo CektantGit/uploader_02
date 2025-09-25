@@ -1191,6 +1191,12 @@ export class MaterialPanel {
       }
     };
 
+    const setDepthWrite = (value) => {
+      if (material.depthWrite !== value) {
+        material.depthWrite = value;
+      }
+    };
+
     if (this.opacityMode === 'slider') {
       if (material.alphaMap) {
         material.alphaMap = null;
@@ -1199,6 +1205,7 @@ export class MaterialPanel {
       material.opacity = fullyOpaque ? 1 : this.opacityValue;
       material.transparent = !fullyOpaque;
       material.blending = fullyOpaque ? NoBlending : NormalBlending;
+      setDepthWrite(fullyOpaque);
       clearAlphaMask();
       setAlphaMode(fullyOpaque ? 'OPAQUE' : 'BLEND');
     } else if (this.opacityMode === 'texture') {
@@ -1210,10 +1217,12 @@ export class MaterialPanel {
       if (useMask) {
         material.transparent = false;
         material.blending = NoBlending;
+        setDepthWrite(true);
         setAlphaMode('MASK');
       } else {
         material.transparent = hasTexture;
         material.blending = hasTexture ? NormalBlending : NoBlending;
+        setDepthWrite(!hasTexture);
         clearAlphaMask();
         setAlphaMode(hasTexture ? 'BLEND' : 'OPAQUE');
       }
@@ -1227,6 +1236,7 @@ export class MaterialPanel {
       material.opacity = 1;
       material.transparent = true;
       material.blending = NormalBlending;
+      setDepthWrite(false);
       clearAlphaMask();
       setAlphaMode('BLEND');
     }

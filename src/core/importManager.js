@@ -550,6 +550,11 @@ export class ImportManager {
       meshMaterial.blending = desiredBlending;
       needsUpdate = true;
     }
+    const desiredDepthWrite = hasAlphaMask ? true : !shouldBeTransparent;
+    if (meshMaterial.depthWrite !== desiredDepthWrite) {
+      meshMaterial.depthWrite = desiredDepthWrite;
+      needsUpdate = true;
+    }
     const desiredAlphaMode = hasAlphaMask ? 'MASK' : shouldBeTransparent ? 'BLEND' : 'OPAQUE';
     meshMaterial.userData = meshMaterial.userData ?? {};
     if (meshMaterial.userData.alphaMode !== desiredAlphaMode) {
