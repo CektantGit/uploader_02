@@ -17,6 +17,22 @@ const NEUTRAL_NORMAL_PREVIEW = createSolidColorDataUrl(100, 100, [128, 128, 255,
 const DEFAULT_ORM_PREVIEW = createSolidColorDataUrl(100, 100, [255, 255, 0, 255]);
 const BAKED_PREVIEW_SIZE = 100;
 let neutralNormalTexture = null;
+let helpTooltipElement = null;
+
+/**
+ * @returns {HTMLDivElement}
+ */
+function ensureHelpTooltipElement() {
+  if (!helpTooltipElement) {
+    helpTooltipElement = document.createElement('div');
+    helpTooltipElement.className = 'material-tooltip';
+    helpTooltipElement.setAttribute('role', 'tooltip');
+    helpTooltipElement.style.left = '-9999px';
+    helpTooltipElement.style.top = '-9999px';
+    document.body.appendChild(helpTooltipElement);
+  }
+  return helpTooltipElement;
+}
 
 /**
  * @typedef {'packed' | 'separate' | 'scalar'} OrmMode
@@ -462,6 +478,8 @@ export class MaterialPanel {
     this.sectionHelpButtons = /** @type {HTMLButtonElement[]} */ (
       Array.from(root.querySelectorAll('[data-section-help]'))
     );
+    this.helpTooltip = /** @type {HTMLDivElement} */ (ensureHelpTooltipElement());
+    this.activeHelpButton = /** @type {HTMLButtonElement | null} */ (null);
     for (const button of this.sectionHelpButtons) {
       button.addEventListener('pointerdown', (event) => {
         event.stopPropagation();
@@ -469,6 +487,24 @@ export class MaterialPanel {
       button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
+      });
+      button.addEventListener('pointerenter', (event) => {
+        const pointerEvent = /** @type {PointerEvent} */ (event);
+        this.#showHelpTooltip(button, pointerEvent.clientX, pointerEvent.clientY);
+      });
+      button.addEventListener('pointermove', (event) => {
+        const pointerEvent = /** @type {PointerEvent} */ (event);
+        this.#positionHelpTooltip(pointerEvent.clientX, pointerEvent.clientY);
+      });
+      button.addEventListener('pointerleave', () => {
+        this.#hideHelpTooltip(button, false);
+      });
+      button.addEventListener('focus', () => {
+        const rect = button.getBoundingClientRect();
+        this.#showHelpTooltip(button, rect.left + rect.width / 2, rect.bottom);
+      });
+      button.addEventListener('blur', () => {
+        this.#hideHelpTooltip(button, true);
       });
     }
 
@@ -2896,6 +2932,85 @@ export class MaterialPanel {
           console.warn('Не удалось декодировать изображение', error);
         }
       }
+    }
+  }
+
+  /**
+   * Показывает всплывающую подсказку и позиционирует ее рядом с указателем.
+   * @param {HTMLButtonElement} button
+   * @param {number} x
+   * @param {number} y
+   */
+  #showHelpTooltip(button, x, y) {
+    if (!this.helpTooltip) {
+      return;
+    }
+    const tooltipText = button.getAttribute('data-tooltip') || '';
+    this.helpTooltip.textContent = tooltipText;
+    this.helpTooltip.style.left = '-9999px';
+    this.helpTooltip.style.top = '-9999px';
+    this.helpTooltip.classList.add('is-visible');
+    this.activeHelpButton = button;
+    this.#positionHelpTooltip(x, y);
+  }
+
+  /**
+   * Позиционирует подсказку внутри границ окна.
+   * @param {number} x
+   * @param {number} y
+   */
+  #positionHelpTooltip(x, y) {
+    if (!this.helpTooltip || !this.helpTooltip.classList.contains('is-visible')) {
+      return;
+    }
+    const margin = 12;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const rect = this.helpTooltip.getBoundingClientRect();
+    let left = x + margin;
+    let top = y + margin;
+
+    if (left + rect.width + margin > viewportWidth) {
+      left = x - rect.width - margin;
+      if (left < margin) {
+        left = viewportWidth - rect.width - margin;
+      }
+    }
+    if (left < margin) {
+      left = margin;
+    }
+
+    if (top + rect.height + margin > viewportHeight) {
+      top = y - rect.height - margin;
+      if (top < margin) {
+        top = viewportHeight - rect.height - margin;
+      }
+    }
+    if (top < margin) {
+      top = margin;
+    }
+
+    this.helpTooltip.style.left = `${Math.round(left)}px`;
+    this.helpTooltip.style.top = `${Math.round(top)}px`;
+  }
+
+  /**
+   * Скрывает подсказку.
+   * @param {HTMLButtonElement} button
+   * @param {boolean} force
+   */
+  #hideHelpTooltip(button, force) {
+    if (!this.helpTooltip) {
+      return;
+    }
+    if (!force && document.activeElement === button) {
+      return;
+    }
+    this.helpTooltip.classList.remove('is-visible');
+    this.helpTooltip.style.left = '-9999px';
+    this.helpTooltip.style.top = '-9999px';
+    if (this.activeHelpButton === button) {
+      this.activeHelpButton = null;
     }
   }
 

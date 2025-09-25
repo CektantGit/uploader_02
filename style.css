@@ -402,14 +402,11 @@ canvas#scene {
   outline-offset: 2px;
 }
 
-.material-section__help-button::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: max-content;
-  max-width: 240px;
+.material-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  max-width: 260px;
   padding: 8px 10px;
   border-radius: 8px;
   background: rgba(15, 23, 42, 0.92);
@@ -418,16 +415,16 @@ canvas#scene {
   font-weight: 500;
   line-height: 1.4;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
-  opacity: 0;
   pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
   transition: opacity 0.15s ease;
-  z-index: 4;
-  text-align: left;
+  z-index: 9999;
 }
 
-.material-section__help-button:hover::after,
-.material-section__help-button:focus-visible::after {
+.material-tooltip.is-visible {
   opacity: 1;
+  visibility: visible;
 }
 
 .material-section__content {
