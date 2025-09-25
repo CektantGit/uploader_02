@@ -119,7 +119,7 @@
                     <span>Color Alpha</span>
                   </label>
                 </div>
-                <div class="material-opacity material-opacity--slider" data-opacity-slider>
+                <div class="material-opacity material-opacity--slider material-control" data-opacity-slider>
                   <div class="texture-upload texture-upload--readonly" data-opacity-slider-target>
                     <img
                       class="texture-upload__image"
@@ -193,47 +193,49 @@
             <details class="material-section" open>
               <summary class="material-section__summary">Normal Map</summary>
               <div class="material-section__content">
-                <div class="texture-upload" data-normal-texture-target>
-                  <img
-                    class="texture-upload__image"
-                    data-normal-texture-image
-                    alt="Предпросмотр нормал-карты"
-                    width="100"
-                    height="100"
-                  />
-                  <button
-                    type="button"
-                    class="texture-upload__remove"
-                    data-normal-texture-remove
-                    aria-label="Удалить нормал-карту"
-                  >
-                    ×
-                  </button>
-                  <div class="texture-upload__label">Upload</div>
-                  <input class="hidden-input" type="file" accept="image/*" data-normal-texture-input />
-                </div>
-                <div class="material-slider">
-                  <label class="material-slider__label" for="normal-strength-slider">Strength</label>
-                  <input
-                    id="normal-strength-slider"
-                    type="range"
-                    min="0"
-                    max="3"
-                    step="0.05"
-                    value="1"
-                    class="material-slider__input"
-                    data-normal-strength
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    max="3"
-                    step="0.05"
-                    value="1.00"
-                    class="material-slider__value"
-                    data-normal-strength-number
-                    aria-label="Normal map strength"
-                  />
+                <div class="material-control material-control--normal">
+                  <div class="texture-upload" data-normal-texture-target>
+                    <img
+                      class="texture-upload__image"
+                      data-normal-texture-image
+                      alt="Предпросмотр нормал-карты"
+                      width="100"
+                      height="100"
+                    />
+                    <button
+                      type="button"
+                      class="texture-upload__remove"
+                      data-normal-texture-remove
+                      aria-label="Удалить нормал-карту"
+                    >
+                      ×
+                    </button>
+                    <div class="texture-upload__label">Upload</div>
+                    <input class="hidden-input" type="file" accept="image/*" data-normal-texture-input />
+                  </div>
+                  <div class="material-slider material-slider--stacked">
+                    <label class="material-slider__label" for="normal-strength-slider">Strength</label>
+                    <input
+                      id="normal-strength-slider"
+                      type="range"
+                      min="0"
+                      max="3"
+                      step="0.05"
+                      value="1"
+                      class="material-slider__input"
+                      data-normal-strength
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="3"
+                      step="0.05"
+                      value="1.00"
+                      class="material-slider__value"
+                      data-normal-strength-number
+                      aria-label="Normal map strength"
+                    />
+                  </div>
                 </div>
               </div>
             </details>
@@ -278,247 +280,259 @@
                 <div class="material-orm material-orm--separate is-hidden" data-orm-separate>
                   <div class="material-orm__channel" data-orm-channel="ao">
                     <p class="material-orm__label">Occlusion</p>
-                    <div class="texture-upload" data-orm-ao-target>
-                      <img
-                        class="texture-upload__image"
-                        data-orm-ao-image
-                        alt="Предпросмотр текстуры запекания"
-                        width="100"
-                        height="100"
-                      />
-                      <button
-                        type="button"
-                        class="texture-upload__remove"
-                        data-orm-ao-remove
-                        aria-label="Удалить текстуру запекания"
-                      >
-                        ×
-                      </button>
-                      <div class="texture-upload__label">Upload</div>
-                      <input class="hidden-input" type="file" accept="image/*" data-orm-ao-input />
-                    </div>
-                    <div class="material-slider material-slider--stacked is-hidden" data-orm-ao-scalar>
-                      <label class="material-slider__label" for="orm-ao-slider">Intensity</label>
-                      <input
-                        id="orm-ao-slider"
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="1"
-                        class="material-slider__input"
-                        data-orm-ao-slider
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="1.00"
-                        class="material-slider__value"
-                        data-orm-ao-number
-                        aria-label="Occlusion intensity"
-                      />
+                    <div class="material-control material-control--channel">
+                      <div class="texture-upload" data-orm-ao-target>
+                        <img
+                          class="texture-upload__image"
+                          data-orm-ao-image
+                          alt="Предпросмотр текстуры запекания"
+                          width="100"
+                          height="100"
+                        />
+                        <button
+                          type="button"
+                          class="texture-upload__remove"
+                          data-orm-ao-remove
+                          aria-label="Удалить текстуру запекания"
+                        >
+                          ×
+                        </button>
+                        <div class="texture-upload__label">Upload</div>
+                        <input class="hidden-input" type="file" accept="image/*" data-orm-ao-input />
+                      </div>
+                      <div class="material-slider material-slider--stacked is-hidden" data-orm-ao-scalar>
+                        <label class="material-slider__label" for="orm-ao-slider">Intensity</label>
+                        <input
+                          id="orm-ao-slider"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1"
+                          class="material-slider__input"
+                          data-orm-ao-slider
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1.00"
+                          class="material-slider__value"
+                          data-orm-ao-number
+                          aria-label="Occlusion intensity"
+                        />
+                      </div>
                     </div>
                   </div>
                   <div class="material-orm__channel" data-orm-channel="metalness">
                     <p class="material-orm__label">Metallic</p>
-                    <div class="texture-upload" data-orm-metalness-target>
-                      <img
-                        class="texture-upload__image"
-                        data-orm-metalness-image
-                        alt="Предпросмотр металлической текстуры"
-                        width="100"
-                        height="100"
-                      />
-                      <button
-                        type="button"
-                        class="texture-upload__remove"
-                        data-orm-metalness-remove
-                        aria-label="Удалить металлическую текстуру"
-                      >
-                        ×
-                      </button>
-                      <div class="texture-upload__label">Upload</div>
-                      <input class="hidden-input" type="file" accept="image/*" data-orm-metalness-input />
-                    </div>
-                    <div class="material-slider material-slider--stacked is-hidden" data-orm-metalness-scalar>
-                      <label class="material-slider__label" for="orm-metalness-slider">Metalness</label>
-                      <input
-                        id="orm-metalness-slider"
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="0"
-                        class="material-slider__input"
-                        data-orm-metalness-slider
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="0.00"
-                        class="material-slider__value"
-                        data-orm-metalness-number
-                        aria-label="Metalness value"
-                      />
+                    <div class="material-control material-control--channel">
+                      <div class="texture-upload" data-orm-metalness-target>
+                        <img
+                          class="texture-upload__image"
+                          data-orm-metalness-image
+                          alt="Предпросмотр металлической текстуры"
+                          width="100"
+                          height="100"
+                        />
+                        <button
+                          type="button"
+                          class="texture-upload__remove"
+                          data-orm-metalness-remove
+                          aria-label="Удалить металлическую текстуру"
+                        >
+                          ×
+                        </button>
+                        <div class="texture-upload__label">Upload</div>
+                        <input class="hidden-input" type="file" accept="image/*" data-orm-metalness-input />
+                      </div>
+                      <div class="material-slider material-slider--stacked is-hidden" data-orm-metalness-scalar>
+                        <label class="material-slider__label" for="orm-metalness-slider">Metalness</label>
+                        <input
+                          id="orm-metalness-slider"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="0"
+                          class="material-slider__input"
+                          data-orm-metalness-slider
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="0.00"
+                          class="material-slider__value"
+                          data-orm-metalness-number
+                          aria-label="Metalness value"
+                        />
+                      </div>
                     </div>
                   </div>
                   <div class="material-orm__channel" data-orm-channel="roughness">
                     <p class="material-orm__label">Roughness</p>
-                    <div class="texture-upload" data-orm-roughness-target>
-                      <img
-                        class="texture-upload__image"
-                        data-orm-roughness-image
-                        alt="Предпросмотр текстуры шероховатости"
-                        width="100"
-                        height="100"
-                      />
-                      <button
-                        type="button"
-                        class="texture-upload__remove"
-                        data-orm-roughness-remove
-                        aria-label="Удалить текстуру шероховатости"
-                      >
-                        ×
-                      </button>
-                      <div class="texture-upload__label">Upload</div>
-                      <input class="hidden-input" type="file" accept="image/*" data-orm-roughness-input />
-                    </div>
-                    <div class="material-slider material-slider--stacked is-hidden" data-orm-roughness-scalar>
-                      <label class="material-slider__label" for="orm-roughness-slider">Roughness</label>
-                      <input
-                        id="orm-roughness-slider"
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="1"
-                        class="material-slider__input"
-                        data-orm-roughness-slider
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="1.00"
-                        class="material-slider__value"
-                        data-orm-roughness-number
-                        aria-label="Roughness value"
-                      />
+                    <div class="material-control material-control--channel">
+                      <div class="texture-upload" data-orm-roughness-target>
+                        <img
+                          class="texture-upload__image"
+                          data-orm-roughness-image
+                          alt="Предпросмотр текстуры шероховатости"
+                          width="100"
+                          height="100"
+                        />
+                        <button
+                          type="button"
+                          class="texture-upload__remove"
+                          data-orm-roughness-remove
+                          aria-label="Удалить текстуру шероховатости"
+                        >
+                          ×
+                        </button>
+                        <div class="texture-upload__label">Upload</div>
+                        <input class="hidden-input" type="file" accept="image/*" data-orm-roughness-input />
+                      </div>
+                      <div class="material-slider material-slider--stacked is-hidden" data-orm-roughness-scalar>
+                        <label class="material-slider__label" for="orm-roughness-slider">Roughness</label>
+                        <input
+                          id="orm-roughness-slider"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1"
+                          class="material-slider__input"
+                          data-orm-roughness-slider
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1.00"
+                          class="material-slider__value"
+                          data-orm-roughness-number
+                          aria-label="Roughness value"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
                 <div class="material-orm material-orm--scalar is-hidden" data-orm-scalar>
                   <div class="material-orm__channel" data-orm-scalar-channel="ao">
                     <p class="material-orm__label">Occlusion</p>
-                    <div class="texture-upload texture-upload--readonly">
-                      <img
-                        class="texture-upload__image"
-                        data-orm-scalar-ao-image
-                        alt="Предпросмотр интенсивности запекания"
-                        width="100"
-                        height="100"
-                      />
-                      <div class="texture-upload__label">Value</div>
-                    </div>
-                    <div class="material-slider material-slider--stacked" data-orm-scalar-ao>
-                      <label class="material-slider__label" for="orm-scalar-ao-slider">Intensity</label>
-                      <input
-                        id="orm-scalar-ao-slider"
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="1"
-                        class="material-slider__input"
-                        data-orm-scalar-ao-slider
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="1.00"
-                        class="material-slider__value"
-                        data-orm-scalar-ao-number
-                        aria-label="Occlusion intensity"
-                      />
+                    <div class="material-control material-control--scalar" data-orm-scalar-ao-container>
+                      <div class="texture-upload texture-upload--readonly">
+                        <img
+                          class="texture-upload__image"
+                          data-orm-scalar-ao-image
+                          alt="Предпросмотр интенсивности запекания"
+                          width="100"
+                          height="100"
+                        />
+                        <div class="texture-upload__label">Value</div>
+                      </div>
+                      <div class="material-slider material-slider--stacked" data-orm-scalar-ao>
+                        <label class="material-slider__label" for="orm-scalar-ao-slider">Intensity</label>
+                        <input
+                          id="orm-scalar-ao-slider"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1"
+                          class="material-slider__input"
+                          data-orm-scalar-ao-slider
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1.00"
+                          class="material-slider__value"
+                          data-orm-scalar-ao-number
+                          aria-label="Occlusion intensity"
+                        />
+                      </div>
                     </div>
                   </div>
                   <div class="material-orm__channel" data-orm-scalar-channel="metalness">
                     <p class="material-orm__label">Metallic</p>
-                    <div class="texture-upload texture-upload--readonly">
-                      <img
-                        class="texture-upload__image"
-                        data-orm-scalar-metalness-image
-                        alt="Предпросмотр металлического значения"
-                        width="100"
-                        height="100"
-                      />
-                      <div class="texture-upload__label">Value</div>
-                    </div>
-                    <div class="material-slider material-slider--stacked" data-orm-scalar-metalness>
-                      <label class="material-slider__label" for="orm-scalar-metalness-slider">Metalness</label>
-                      <input
-                        id="orm-scalar-metalness-slider"
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="0"
-                        class="material-slider__input"
-                        data-orm-scalar-metalness-slider
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="0.00"
-                        class="material-slider__value"
-                        data-orm-scalar-metalness-number
-                        aria-label="Metalness value"
-                      />
+                    <div class="material-control material-control--scalar" data-orm-scalar-metalness-container>
+                      <div class="texture-upload texture-upload--readonly">
+                        <img
+                          class="texture-upload__image"
+                          data-orm-scalar-metalness-image
+                          alt="Предпросмотр металлического значения"
+                          width="100"
+                          height="100"
+                        />
+                        <div class="texture-upload__label">Value</div>
+                      </div>
+                      <div class="material-slider material-slider--stacked" data-orm-scalar-metalness>
+                        <label class="material-slider__label" for="orm-scalar-metalness-slider">Metalness</label>
+                        <input
+                          id="orm-scalar-metalness-slider"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="0"
+                          class="material-slider__input"
+                          data-orm-scalar-metalness-slider
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="0.00"
+                          class="material-slider__value"
+                          data-orm-scalar-metalness-number
+                          aria-label="Metalness value"
+                        />
+                      </div>
                     </div>
                   </div>
                   <div class="material-orm__channel" data-orm-scalar-channel="roughness">
                     <p class="material-orm__label">Roughness</p>
-                    <div class="texture-upload texture-upload--readonly">
-                      <img
-                        class="texture-upload__image"
-                        data-orm-scalar-roughness-image
-                        alt="Предпросмотр значения шероховатости"
-                        width="100"
-                        height="100"
-                      />
-                      <div class="texture-upload__label">Value</div>
-                    </div>
-                    <div class="material-slider material-slider--stacked" data-orm-scalar-roughness>
-                      <label class="material-slider__label" for="orm-scalar-roughness-slider">Roughness</label>
-                      <input
-                        id="orm-scalar-roughness-slider"
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="1"
-                        class="material-slider__input"
-                        data-orm-scalar-roughness-slider
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value="1.00"
-                        class="material-slider__value"
-                        data-orm-scalar-roughness-number
-                        aria-label="Roughness value"
-                      />
+                    <div class="material-control material-control--scalar" data-orm-scalar-roughness-container>
+                      <div class="texture-upload texture-upload--readonly">
+                        <img
+                          class="texture-upload__image"
+                          data-orm-scalar-roughness-image
+                          alt="Предпросмотр значения шероховатости"
+                          width="100"
+                          height="100"
+                        />
+                        <div class="texture-upload__label">Value</div>
+                      </div>
+                      <div class="material-slider material-slider--stacked" data-orm-scalar-roughness>
+                        <label class="material-slider__label" for="orm-scalar-roughness-slider">Roughness</label>
+                        <input
+                          id="orm-scalar-roughness-slider"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1"
+                          class="material-slider__input"
+                          data-orm-scalar-roughness-slider
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1.00"
+                          class="material-slider__value"
+                          data-orm-scalar-roughness-number
+                          aria-label="Roughness value"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

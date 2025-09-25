@@ -459,7 +459,7 @@ export class MaterialPanel {
     this.bakedNormalImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-baked-normal-image]'));
     this.bakedOrmImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-baked-orm-image]'));
 
-    /** @type {Record<OrmChannelKey, { config: typeof ORM_CHANNELS[number]; separate: { target: HTMLElement | null; image: HTMLImageElement | null; input: HTMLInputElement | null; remove: HTMLButtonElement | null; sliderContainer: HTMLElement | null; slider: HTMLInputElement | null; number: HTMLInputElement | null; }; scalar: { image: HTMLImageElement | null; slider: HTMLInputElement | null; number: HTMLInputElement | null; }; }>} */
+    /** @type {Record<OrmChannelKey, { config: typeof ORM_CHANNELS[number]; separate: { target: HTMLElement | null; image: HTMLImageElement | null; input: HTMLInputElement | null; remove: HTMLButtonElement | null; sliderContainer: HTMLElement | null; slider: HTMLInputElement | null; number: HTMLInputElement | null; }; scalar: { container: HTMLElement | null; image: HTMLImageElement | null; slider: HTMLInputElement | null; number: HTMLInputElement | null; }; }>} */
     this.ormChannels = /** @type {any} */ ({});
     for (const channel of ORM_CHANNELS) {
       this.ormChannels[channel.key] = {
@@ -474,6 +474,9 @@ export class MaterialPanel {
           number: /** @type {HTMLInputElement | null} */ (root.querySelector(`[data-orm-${channel.key}-number]`)),
         },
         scalar: {
+          container: /** @type {HTMLElement | null} */ (
+            root.querySelector(`[data-orm-scalar-${channel.key}-container]`)
+          ),
           image: /** @type {HTMLImageElement | null} */ (root.querySelector(`[data-orm-scalar-${channel.key}-image]`)),
           slider: /** @type {HTMLInputElement | null} */ (root.querySelector(`[data-orm-scalar-${channel.key}-slider]`)),
           number: /** @type {HTMLInputElement | null} */ (root.querySelector(`[data-orm-scalar-${channel.key}-number]`)),
@@ -1597,11 +1600,15 @@ export class MaterialPanel {
       if (refs.separate.remove) {
         refs.separate.remove.disabled = this.ormMode !== 'separate' || !state.texture;
       }
+      const scalarEnabled = this.ormMode === 'scalar' && channel.key !== 'ao';
       if (refs.scalar.slider) {
-        refs.scalar.slider.disabled = this.ormMode !== 'scalar';
+        refs.scalar.slider.disabled = !scalarEnabled;
       }
       if (refs.scalar.number) {
-        refs.scalar.number.disabled = this.ormMode !== 'scalar';
+        refs.scalar.number.disabled = !scalarEnabled;
+      }
+      if (refs.scalar.container) {
+        refs.scalar.container.classList.toggle('is-disabled', !scalarEnabled);
       }
       this.#syncChannelInputs(channel.key, null);
       this.#updateChannelPreviews(channel.key);
