@@ -459,6 +459,18 @@ export class MaterialPanel {
     this.bakedColorImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-baked-color-image]'));
     this.bakedNormalImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-baked-normal-image]'));
     this.bakedOrmImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-baked-orm-image]'));
+    this.sectionHelpButtons = /** @type {HTMLButtonElement[]} */ (
+      Array.from(root.querySelectorAll('[data-section-help]'))
+    );
+    for (const button of this.sectionHelpButtons) {
+      button.addEventListener('pointerdown', (event) => {
+        event.stopPropagation();
+      });
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+    }
 
     /** @type {Record<OrmChannelKey, { config: typeof ORM_CHANNELS[number]; separate: { target: HTMLElement | null; image: HTMLImageElement | null; input: HTMLInputElement | null; remove: HTMLButtonElement | null; sliderContainer: HTMLElement | null; slider: HTMLInputElement | null; number: HTMLInputElement | null; }; scalar: { container: HTMLElement | null; image: HTMLImageElement | null; slider: HTMLInputElement | null; number: HTMLInputElement | null; }; }>} */
     this.ormChannels = /** @type {any} */ ({});
@@ -622,7 +634,7 @@ export class MaterialPanel {
     this.#updateOpacityAvailability();
     this.#updateOpacityModeView();
     this.#updateOrmModeView();
-    this.#showMessage('Выберите один меш для настройки материала.');
+    this.#showMessage('Select a single mesh to edit its material.');
   }
 
   /**
@@ -632,7 +644,9 @@ export class MaterialPanel {
   update(selection) {
     if (!selection || selection.size !== 1) {
       this.#clearActiveMaterial();
-      this.#showMessage(selection?.size ? 'Выберите только один меш для редактирования.' : 'Выберите один меш для настройки материала.');
+      this.#showMessage(
+        selection?.size ? 'Select only one mesh to edit.' : 'Select a single mesh to edit its material.'
+      );
       return;
     }
 
@@ -640,7 +654,7 @@ export class MaterialPanel {
     const material = this.#resolveMaterial(mesh);
     if (!material || !material.color || !(material.color instanceof Color)) {
       this.#clearActiveMaterial();
-      this.#showMessage('Материал не поддерживается.');
+      this.#showMessage('The selected material is not supported.');
       return;
     }
 
