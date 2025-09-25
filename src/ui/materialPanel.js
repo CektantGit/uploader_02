@@ -1162,6 +1162,65 @@ export class MaterialPanel {
   }
 
   /**
+   * Готовит материал к игнорированию альфа-канала базовой текстуры при необходимости.
+   * @param {(import('three').Material & { userData?: any; onBeforeCompile?: import('three').Material['onBeforeCompile']; customProgramCacheKey?: () => string })} material
+   */
+  #ensureOpacityMapOverride(material) {
+    if (!material) {
+      return;
+    }
+    material.userData = material.userData ?? {};
+    if (material.userData.__opacityShaderPatched) {
+      return;
+    }
+
+    const previousOnBeforeCompile =
+      typeof material.onBeforeCompile === 'function' ? material.onBeforeCompile : null;
+
+    material.onBeforeCompile = (shader) => {
+      previousOnBeforeCompile?.call(material, shader);
+      const uniform = { value: Boolean(material.userData?.__ignoreBaseAlpha) };
+      shader.uniforms.uIgnoreBaseAlpha = uniform;
+      material.userData.__ignoreBaseAlphaUniform = uniform;
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <map_fragment>',
+        `#include <map_fragment>\n#if defined(USE_MAP)\n  if (uIgnoreBaseAlpha) {\n    diffuseColor.a = 1.0;\n  }\n#endif`
+      );
+    };
+
+    const previousCacheKey =
+      typeof material.customProgramCacheKey === 'function' ? material.customProgramCacheKey : null;
+    material.customProgramCacheKey = () => {
+      const base = previousCacheKey ? previousCacheKey.call(material) : '';
+      return `${base}|ignore-base-alpha`;
+    };
+
+    material.userData.__ignoreBaseAlphaUniform = null;
+    material.userData.__ignoreBaseAlpha = Boolean(material.userData.__ignoreBaseAlpha);
+    material.userData.__opacityShaderPatched = true;
+    material.needsUpdate = true;
+  }
+
+  /**
+   * Управляет использованием альфа-канала базовой текстуры.
+   * @param {(import('three').Material & { userData?: any })} material
+   * @param {boolean} ignore
+   */
+  #setIgnoreColorTextureAlpha(material, ignore) {
+    if (!material) {
+      return;
+    }
+    this.#ensureOpacityMapOverride(material);
+    material.userData = material.userData ?? {};
+    const normalized = Boolean(ignore);
+    material.userData.__ignoreBaseAlpha = normalized;
+    const uniform = material.userData.__ignoreBaseAlphaUniform;
+    if (uniform) {
+      uniform.value = normalized;
+    }
+  }
+
+  /**
    * Применяет текущие настройки прозрачности к материалу.
    */
   #applyOpacityState() {
@@ -1196,6 +1255,8 @@ export class MaterialPanel {
         material.depthWrite = value;
       }
     };
+
+    this.#setIgnoreColorTextureAlpha(material, this.opacityMode === 'slider');
 
     if (this.opacityMode === 'slider') {
       if (material.alphaMap) {
