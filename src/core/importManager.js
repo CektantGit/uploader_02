@@ -2,7 +2,54 @@ import { DRACOLoader } from 'DRACOLoader';
 import { FBXLoader } from 'FBXLoader';
 import { GLTFLoader } from 'GLTFLoader';
 import { OBJLoader } from 'OBJLoader';
-import { BufferAttribute, BufferGeometry, Matrix4, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
+import {
+  BufferAttribute,
+  BufferGeometry,
+  Matrix4,
+  MeshStandardMaterial,
+  Quaternion,
+  SRGBColorSpace,
+  Vector3,
+} from 'three';
+
+/**
+ * Ограничивает значение указанными границами.
+ * @param {number} value
+ * @param {number} min
+ * @param {number} max
+ */
+function clamp(value, min, max) {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  if (value < min) {
+    return min;
+  }
+  if (value > max) {
+    return max;
+  }
+  return value;
+}
+
+const UNSUPPORTED_TEXTURE_PROPS = [
+  'bumpMap',
+  'displacementMap',
+  'emissiveMap',
+  'lightMap',
+  'specularMap',
+  'envMap',
+  'gradientMap',
+  'clearcoatMap',
+  'clearcoatNormalMap',
+  'clearcoatRoughnessMap',
+  'sheenColorMap',
+  'sheenRoughnessMap',
+  'transmissionMap',
+  'thicknessMap',
+  'iridescenceMap',
+  'iridescenceThicknessMap',
+  'anisotropyMap',
+];
 
 /**
  * Отвечает за загрузку файлов и добавление новых мешей в сцену и UI.
@@ -277,6 +324,7 @@ export class ImportManager {
         mesh.userData = { ...baseUserData };
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+        this.#sanitizeMaterial(mesh.material, mesh.geometry);
         this.#applyTransform(mesh, transform);
         clones.push(mesh);
       });
@@ -289,6 +337,7 @@ export class ImportManager {
         mesh.userData = { ...baseUserData };
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+        this.#sanitizeMaterial(mesh.material, mesh.geometry);
         this.#applyTransform(mesh, transform);
         clones.push(mesh);
       }
@@ -300,6 +349,7 @@ export class ImportManager {
       mesh.userData = { ...baseUserData };
       mesh.castShadow = true;
       mesh.receiveShadow = true;
+      this.#sanitizeMaterial(mesh.material, mesh.geometry);
       this.#applyTransform(mesh, transform);
       clones.push(mesh);
     }
@@ -385,6 +435,118 @@ export class ImportManager {
     }
     if (geometry.boundingSphere === null) {
       geometry.computeBoundingSphere();
+    }
+  }
+
+  /**
+   * Подготавливает материал к использованию в приложении, отключая неподдерживаемые параметры.
+   * @param {import('three').Material | import('three').Material[] | null | undefined} material
+   * @param {BufferGeometry | null | undefined} geometry
+   */
+  #sanitizeMaterial(material, geometry) {
+    if (!material) {
+      return;
+    }
+    if (Array.isArray(material)) {
+      material.forEach((item) => this.#sanitizeMaterial(item, geometry));
+      return;
+    }
+    if (!material.isMaterial) {
+      return;
+    }
+
+    const meshMaterial = /** @type {import('three').MeshStandardMaterial & { userData: any }} */ (material);
+    meshMaterial.userData = meshMaterial.userData ?? {};
+
+    let needsUpdate = false;
+
+    for (const prop of UNSUPPORTED_TEXTURE_PROPS) {
+      if (prop in meshMaterial && meshMaterial[prop]) {
+        meshMaterial[prop] = null;
+        needsUpdate = true;
+      }
+    }
+
+    const color = /** @type {import('three').Color | undefined} */ (meshMaterial.color);
+    if (color && typeof color.getHexString === 'function') {
+      const currentHex = `#${color.getHexString()}`;
+      if (typeof meshMaterial.userData.__baseColorBackup !== 'string') {
+        meshMaterial.userData.__baseColorBackup = currentHex;
+      }
+    }
+
+    if (meshMaterial.map) {
+      if (meshMaterial.map.colorSpace !== SRGBColorSpace) {
+        meshMaterial.map.colorSpace = SRGBColorSpace;
+        meshMaterial.map.needsUpdate = true;
+        needsUpdate = true;
+      }
+      if (color && typeof color.set === 'function') {
+        const hex = color.getHexString().toLowerCase();
+        if (hex !== 'ffffff') {
+          color.set('#ffffff');
+          needsUpdate = true;
+        }
+      }
+    }
+
+    const aoIntensity = clamp(
+      typeof meshMaterial.aoMapIntensity === 'number' ? meshMaterial.aoMapIntensity : 1,
+      0,
+      1,
+    );
+    if (meshMaterial.aoMapIntensity !== aoIntensity) {
+      meshMaterial.aoMapIntensity = aoIntensity;
+      needsUpdate = true;
+    }
+    const metalness = clamp(
+      typeof meshMaterial.metalness === 'number' ? meshMaterial.metalness : 0,
+      0,
+      1,
+    );
+    if (meshMaterial.metalness !== metalness) {
+      meshMaterial.metalness = metalness;
+      needsUpdate = true;
+    }
+    const roughness = clamp(
+      typeof meshMaterial.roughness === 'number' ? meshMaterial.roughness : 1,
+      0,
+      1,
+    );
+    if (meshMaterial.roughness !== roughness) {
+      meshMaterial.roughness = roughness;
+      needsUpdate = true;
+    }
+
+    const opacity = clamp(
+      typeof meshMaterial.opacity === 'number' ? meshMaterial.opacity : 1,
+      0,
+      1,
+    );
+    if (meshMaterial.opacity !== opacity) {
+      meshMaterial.opacity = opacity;
+      needsUpdate = true;
+    }
+    const shouldBeTransparent = opacity < 1 || Boolean(meshMaterial.alphaMap);
+    if (meshMaterial.transparent !== shouldBeTransparent) {
+      meshMaterial.transparent = shouldBeTransparent;
+      needsUpdate = true;
+    }
+
+    if (geometry && geometry.isBufferGeometry && (meshMaterial.aoMap || meshMaterial.lightMap)) {
+      const uv2 = geometry.getAttribute('uv2');
+      const uv = geometry.getAttribute('uv');
+      if (!uv2 && uv) {
+        geometry.setAttribute('uv2', uv.clone());
+      } else if (!uv && !uv2) {
+        meshMaterial.aoMap = null;
+        meshMaterial.lightMap = null;
+        needsUpdate = true;
+      }
+    }
+
+    if (needsUpdate) {
+      meshMaterial.needsUpdate = true;
     }
   }
 
