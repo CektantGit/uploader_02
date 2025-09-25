@@ -7,6 +7,8 @@ import {
   BufferGeometry,
   Matrix4,
   MeshStandardMaterial,
+  NoBlending,
+  NormalBlending,
   Quaternion,
   SRGBColorSpace,
   Vector3,
@@ -530,6 +532,11 @@ export class ImportManager {
     const shouldBeTransparent = opacity < 1 || Boolean(meshMaterial.alphaMap);
     if (meshMaterial.transparent !== shouldBeTransparent) {
       meshMaterial.transparent = shouldBeTransparent;
+      needsUpdate = true;
+    }
+    const desiredBlending = shouldBeTransparent ? NormalBlending : NoBlending;
+    if (meshMaterial.blending !== desiredBlending) {
+      meshMaterial.blending = desiredBlending;
       needsUpdate = true;
     }
 

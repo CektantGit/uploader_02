@@ -3,6 +3,8 @@ import {
   DataTexture,
   LinearFilter,
   LinearSRGBColorSpace,
+  NoBlending,
+  NormalBlending,
   RepeatWrapping,
   SRGBColorSpace,
   TextureLoader,
@@ -1172,14 +1174,19 @@ export class MaterialPanel {
       if (material.alphaMap) {
         material.alphaMap = null;
       }
-      material.opacity = this.opacityValue;
-      material.transparent = this.opacityValue < 1;
+      const fullyOpaque = this.opacityValue >= 0.999;
+      material.opacity = fullyOpaque ? 1 : this.opacityValue;
+      material.transparent = !fullyOpaque;
+      material.blending = fullyOpaque ? NoBlending : NormalBlending;
     } else if (this.opacityMode === 'texture') {
-      material.alphaMap = this.opacityTexture ?? null;
+      const texture = this.opacityTexture ?? null;
+      material.alphaMap = texture;
       material.opacity = 1;
-      material.transparent = Boolean(this.opacityTexture);
-      if (material.alphaMap) {
-        material.alphaMap.needsUpdate = true;
+      const hasTexture = Boolean(texture);
+      material.transparent = hasTexture;
+      material.blending = hasTexture ? NormalBlending : NoBlending;
+      if (texture) {
+        texture.needsUpdate = true;
       }
     } else {
       if (material.alphaMap) {
@@ -1187,6 +1194,7 @@ export class MaterialPanel {
       }
       material.opacity = 1;
       material.transparent = true;
+      material.blending = NormalBlending;
     }
     material.needsUpdate = true;
     this.#queueBakedUpdate();
