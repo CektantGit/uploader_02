@@ -529,7 +529,8 @@ export class ImportManager {
       meshMaterial.opacity = opacity;
       needsUpdate = true;
     }
-    const shouldBeTransparent = opacity < 1 || Boolean(meshMaterial.alphaMap);
+    const shouldBeTransparent =
+      Boolean(meshMaterial.transparent) || opacity < 1 || Boolean(meshMaterial.alphaMap);
     if (meshMaterial.transparent !== shouldBeTransparent) {
       meshMaterial.transparent = shouldBeTransparent;
       needsUpdate = true;
