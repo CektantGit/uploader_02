@@ -1474,10 +1474,32 @@ export class MaterialPanel {
       roughness: roughnessMap ?? null,
     };
 
-    const hasPackedTexture = Boolean(aoMap && metalnessMap && roughnessMap && aoMap === metalnessMap && aoMap === roughnessMap);
-    if (hasPackedTexture) {
-      this.ormPackedTexture = aoMap;
-      const preview = getTexturePreview(aoMap) ?? previousPreviews.ao ?? WHITE_PREVIEW;
+    const packedTexture = (() => {
+      if (
+        aoMap &&
+        metalnessMap &&
+        aoMap === metalnessMap &&
+        (!roughnessMap || roughnessMap === aoMap)
+      ) {
+        return aoMap;
+      }
+      if (aoMap && roughnessMap && aoMap === roughnessMap && !metalnessMap) {
+        return aoMap;
+      }
+      if (metalnessMap && roughnessMap && metalnessMap === roughnessMap && !aoMap) {
+        return metalnessMap;
+      }
+      return null;
+    })();
+
+    if (packedTexture) {
+      this.ormPackedTexture = packedTexture;
+      const preview =
+        getTexturePreview(packedTexture) ??
+        previousPreviews.ao ??
+        previousPreviews.metalness ??
+        previousPreviews.roughness ??
+        WHITE_PREVIEW;
       this.ormPackedPreview = preview || WHITE_PREVIEW;
       for (const channel of ORM_CHANNELS) {
         this.ormChannelState[channel.key].texture = null;
