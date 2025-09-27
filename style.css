@@ -147,7 +147,9 @@ canvas#scene {
 
 .panel__section--info {
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: 12px;
+  margin-right: -8px;
+  scrollbar-gutter: stable both-edges;
 }
 
 .panel__section--info::-webkit-scrollbar {
