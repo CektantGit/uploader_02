@@ -47,13 +47,37 @@
           data-panel-section="info"
         >
           <div class="info-panel" data-info-panel>
-            <div class="info-panel__group info-panel__group--language">
+            <div class="info-panel__group">
               <label class="info-field">
-                <span class="info-field__label" data-i18n-key="language.label">Language</span>
-                <select class="info-field__input" data-info-language>
-                  <option value="en">English</option>
-                  <option value="ru">Русский</option>
-                </select>
+                <span class="info-field__label" data-i18n-key="name.label">Name</span>
+                <input
+                  type="text"
+                  class="info-field__input"
+                  data-info-name
+                  data-i18n-placeholder="name.placeholder"
+                />
+              </label>
+            </div>
+            <div class="info-panel__group">
+              <label class="info-field">
+                <span class="info-field__label" data-i18n-key="description.label">Description</span>
+                <textarea
+                  class="info-field__input info-field__input--multiline"
+                  rows="4"
+                  data-info-description
+                  data-i18n-placeholder="description.placeholder"
+                ></textarea>
+              </label>
+            </div>
+            <div class="info-panel__group">
+              <label class="info-field">
+                <span class="info-field__label" data-i18n-key="tags.label">Tags</span>
+                <input
+                  type="text"
+                  class="info-field__input"
+                  data-info-tags
+                  data-i18n-placeholder="tags.placeholder"
+                />
               </label>
             </div>
             <div class="info-panel__group">
@@ -102,7 +126,7 @@
                 />
               </label>
             </div>
-            <div class="info-panel__group info-panel__group--split">
+            <div class="info-panel__group">
               <label class="info-field">
                 <span class="info-field__label" data-i18n-key="brand.label">Brand</span>
                 <input
@@ -112,6 +136,8 @@
                   data-i18n-placeholder="brand.placeholder"
                 />
               </label>
+            </div>
+            <div class="info-panel__group">
               <label class="info-field">
                 <span class="info-field__label">
                   <span data-i18n-key="category.label">Category</span>
@@ -130,34 +156,13 @@
                 </select>
               </label>
             </div>
-            <div class="info-panel__group info-panel__group--split" data-info-subcategory-group>
+            <div class="info-panel__group" data-info-subcategory-group>
               <label class="info-field">
                 <span class="info-field__label" data-i18n-key="subcategory.label">Subcategory</span>
                 <select class="info-field__input" data-info-subcategory>
                   <option value="" data-i18n-key="subcategory.placeholder">Select subcategory</option>
                 </select>
               </label>
-              <div class="info-panel__preview" data-info-category-preview>
-                <img alt="" data-info-category-image width="100" height="100" />
-                <span class="info-panel__preview-label" data-i18n-key="subcategory.previewLabel">Preview</span>
-              </div>
-            </div>
-            <div class="info-panel__group">
-              <div class="info-field info-field--stacked">
-                <div class="info-field__label info-field__label--split">
-                  <span data-i18n-key="color.label">Color miniature</span>
-                  <button
-                    type="button"
-                    class="info-field__help"
-                    aria-label="Color miniature description"
-                    data-tooltip-button
-                    data-i18n-tooltip="color.help"
-                  >
-                    ?
-                  </button>
-                </div>
-                <div class="info-panel__color-grid" data-info-color-grid></div>
-              </div>
             </div>
             <div class="info-panel__group">
               <label class="info-field">

@@ -4,18 +4,23 @@ import { TooltipController } from './tooltip.js';
  * @typedef {{ id: string; name: string; subs?: CategoryNode[]; previewUrl?: string }} CategoryNode
  */
 
-/**
- * @typedef {{ id: number; name: string; hex: string }} ColorOption
- */
-
 const INFO_TRANSLATIONS = {
   en: {
     tabs: {
       info: 'Info',
       mesh: 'Mesh',
     },
-    language: {
-      label: 'Language',
+    name: {
+      label: 'Name',
+      placeholder: 'Object name',
+    },
+    description: {
+      label: 'Description',
+      placeholder: 'Describe the object',
+    },
+    tags: {
+      label: 'Tags',
+      placeholder: 'tag1, tag2',
     },
     placement: {
       label: 'Placement type',
@@ -45,11 +50,6 @@ const INFO_TRANSLATIONS = {
     subcategory: {
       label: 'Subcategory',
       placeholder: 'Select subcategory',
-      previewLabel: 'Preview',
-    },
-    color: {
-      label: 'Color miniature',
-      help: 'Choose a miniature color that will be displayed in color selection menus.',
     },
     visibility: {
       label: 'Visibility',
@@ -70,15 +70,23 @@ const INFO_TRANSLATIONS = {
     },
     loading: 'Loading…',
     loadFailed: 'Failed to load',
-    noPreview: 'No preview',
   },
   ru: {
     tabs: {
       info: 'Инфо',
       mesh: 'Меши',
     },
-    language: {
-      label: 'Язык',
+    name: {
+      label: 'Название',
+      placeholder: 'Название объекта',
+    },
+    description: {
+      label: 'Описание',
+      placeholder: 'Кратко опишите объект',
+    },
+    tags: {
+      label: 'Теги',
+      placeholder: 'тег1, тег2',
     },
     placement: {
       label: 'Тип размещения',
@@ -108,11 +116,6 @@ const INFO_TRANSLATIONS = {
     subcategory: {
       label: 'Подкатегория',
       placeholder: 'Выберите подкатегорию',
-      previewLabel: 'Превью',
-    },
-    color: {
-      label: 'Цвет миниатюры',
-      help: 'Выберите цвет миниатюры, который будет отображаться в меню выбора цвета.',
     },
     visibility: {
       label: 'Видимость',
@@ -133,12 +136,10 @@ const INFO_TRANSLATIONS = {
     },
     loading: 'Загрузка…',
     loadFailed: 'Не удалось загрузить',
-    noPreview: 'Нет превью',
   },
 };
 
 const CATEGORY_API = 'https://api.vizbl.us/obj/GetCats';
-const COLOR_API = 'https://api.vizbl.us/obj/GetColors';
 
 /**
  * Панель с информационными настройками объекта.
@@ -149,17 +150,16 @@ export class InfoPanel {
    */
   constructor(root) {
     this.root = root;
-    this.languageSelect = /** @type {HTMLSelectElement | null} */ (root.querySelector('[data-info-language]'));
+    this.nameInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-info-name]'));
+    this.descriptionInput = /** @type {HTMLTextAreaElement | null} */ (root.querySelector('[data-info-description]'));
+    this.tagsInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-info-tags]'));
     this.placementSelect = /** @type {HTMLSelectElement | null} */ (root.querySelector('[data-info-placement]'));
     this.destinationInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-info-destination]'));
     this.brandInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-info-brand]'));
     this.categorySelect = /** @type {HTMLSelectElement | null} */ (root.querySelector('[data-info-category]'));
     this.subcategoryGroup = /** @type {HTMLElement | null} */ (root.querySelector('[data-info-subcategory-group]'));
     this.subcategorySelect = /** @type {HTMLSelectElement | null} */ (root.querySelector('[data-info-subcategory]'));
-    this.categoryPreview = /** @type {HTMLElement | null} */ (root.querySelector('[data-info-category-preview]'));
-    this.categoryPreviewImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-info-category-image]'));
     this.visibilitySelect = /** @type {HTMLSelectElement | null} */ (root.querySelector('[data-info-visibility]'));
-    this.colorGrid = /** @type {HTMLElement | null} */ (root.querySelector('[data-info-color-grid]'));
     this.coverTarget = /** @type {HTMLElement | null} */ (root.querySelector('[data-info-cover-target]'));
     this.coverImage = /** @type {HTMLImageElement | null} */ (root.querySelector('[data-info-cover-image]'));
     this.coverInput = /** @type {HTMLInputElement | null} */ (root.querySelector('[data-info-cover-input]'));
@@ -171,12 +171,7 @@ export class InfoPanel {
     this.categories = null;
     /** @type {CategoryNode | null} */
     this.selectedCategory = null;
-    /** @type {ColorOption[] | null} */
-    this.colors = null;
-    this.selectedColorId = null;
-
     this.#bindTooltipButtons();
-    this.#bindLanguage();
     this.#bindCategorySelect();
     this.#bindCoverControls();
     this.#applyLanguage();
@@ -223,19 +218,6 @@ export class InfoPanel {
         this.tooltip.hide(button, true);
       });
     }
-  }
-
-  /**
-   * Настраивает переключение языка.
-   */
-  #bindLanguage() {
-    if (!this.languageSelect) {
-      return;
-    }
-    this.languageSelect.addEventListener('change', () => {
-      this.activeLanguage = this.languageSelect?.value || 'en';
-      this.#applyLanguage();
-    });
   }
 
   /**
@@ -295,7 +277,7 @@ export class InfoPanel {
    * Выполняет запросы за категориями и цветами.
    */
   async #loadInitialData() {
-    await Promise.all([this.#loadCategories(), this.#loadColors()]);
+    await this.#loadCategories();
   }
 
   /**
@@ -322,31 +304,6 @@ export class InfoPanel {
       this.#setCategoryError();
     } finally {
       this.#setCategoryLoading(false);
-    }
-  }
-
-  /**
-   * Загружает цвета из API.
-   */
-  async #loadColors() {
-    if (!this.colorGrid) {
-      return;
-    }
-    this.colorGrid.textContent = this.#translatePath('loading') || 'Loading…';
-    try {
-      const response = await fetch(COLOR_API, { mode: 'cors' });
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-      const data = await response.json();
-      if (!data || !Array.isArray(data.colors)) {
-        throw new Error('Unexpected colors payload');
-      }
-      this.colors = data.colors;
-      this.#renderColors();
-    } catch (error) {
-      console.error('Failed to load colors', error);
-      this.colorGrid.textContent = this.#translatePath('loadFailed') || 'Failed to load';
     }
   }
 
@@ -392,12 +349,6 @@ export class InfoPanel {
       this.selectedCategory = this.categories.find((category) => category.id === value) ?? null;
       this.#updateSubcategories();
     });
-
-    if (this.subcategorySelect) {
-      this.subcategorySelect.addEventListener('change', () => {
-        this.#updateCategoryPreview();
-      });
-    }
   }
 
   /**
@@ -416,7 +367,6 @@ export class InfoPanel {
 
     if (!subs || subs.length === 0) {
       this.subcategoryGroup.classList.add('is-hidden');
-      this.#updateCategoryPreview();
       return;
     }
     this.subcategoryGroup.classList.remove('is-hidden');
@@ -425,78 +375,6 @@ export class InfoPanel {
       option.value = sub.id;
       option.textContent = sub.name;
       this.subcategorySelect.append(option);
-    }
-    this.#updateCategoryPreview();
-  }
-
-  /**
-   * Обновляет миниатюру выбранной категории или подкатегории.
-   */
-  #updateCategoryPreview() {
-    if (!this.categoryPreview || !this.categoryPreviewImage) {
-      return;
-    }
-    let previewUrl = this.selectedCategory?.previewUrl ?? '';
-    const subId = this.subcategorySelect?.value || '';
-    if (this.selectedCategory?.subs && subId) {
-      const sub = this.selectedCategory.subs.find((item) => item.id === subId);
-      if (sub?.previewUrl) {
-        previewUrl = sub.previewUrl;
-      }
-    }
-    if (previewUrl) {
-      this.categoryPreviewImage.src = previewUrl;
-      this.categoryPreviewImage.alt = this.#translatePath('subcategory.previewLabel') || 'Preview';
-    } else {
-      this.categoryPreviewImage.removeAttribute('src');
-      this.categoryPreviewImage.alt = this.#translatePath('noPreview') || 'No preview';
-    }
-  }
-
-  /**
-   * Отображает доступные цвета миниатюр.
-   */
-  #renderColors() {
-    if (!this.colorGrid) {
-      return;
-    }
-    this.colorGrid.innerHTML = '';
-    if (!this.colors || this.colors.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'info-panel__color-empty';
-      empty.textContent = this.#translatePath('loadFailed') || 'Failed to load';
-      this.colorGrid.append(empty);
-      return;
-    }
-    for (const color of this.colors) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'info-panel__color-option';
-      button.style.setProperty('--color-value', `#${color.hex}`);
-      button.dataset.colorId = String(color.id);
-      button.title = color.name;
-      button.innerHTML = `<span class="info-panel__color-swatch" aria-hidden="true"></span><span class="info-panel__color-name">${color.name}</span>`;
-      button.addEventListener('click', () => {
-        this.#selectColor(color.id);
-      });
-      this.colorGrid.append(button);
-    }
-  }
-
-  /**
-   * Устанавливает выбранный цвет.
-   * @param {number} colorId
-   */
-  #selectColor(colorId) {
-    this.selectedColorId = colorId;
-    if (!this.colorGrid) {
-      return;
-    }
-    const buttons = /** @type {HTMLButtonElement[]} */ (
-      Array.from(this.colorGrid.querySelectorAll('.info-panel__color-option'))
-    );
-    for (const button of buttons) {
-      button.classList.toggle('is-active', button.dataset.colorId === String(colorId));
     }
   }
 
@@ -576,6 +454,19 @@ export class InfoPanel {
     option.disabled = true;
     option.selected = true;
     this.categorySelect.append(option);
+  }
+
+  /**
+   * Устанавливает активный язык интерфейса панели.
+   * @param {keyof typeof INFO_TRANSLATIONS} language
+   */
+  setLanguage(language) {
+    if (language in INFO_TRANSLATIONS) {
+      this.activeLanguage = language;
+    } else {
+      this.activeLanguage = 'en';
+    }
+    this.#applyLanguage();
   }
 
   /**
