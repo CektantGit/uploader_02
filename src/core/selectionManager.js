@@ -88,14 +88,6 @@ export class SelectionManager extends EventTarget {
       return;
     }
 
-    if (withShift && this.lastSelectedId) {
-      const range = this.#getRangeBetween(this.lastSelectedId, uuid);
-      if (range.length > 0) {
-        this.setSelection(range, true);
-        return;
-      }
-    }
-
     const mesh = this.meshMap.get(uuid)?.mesh ?? null;
     if (mesh) {
       this.#selectMesh(mesh, withShift);
@@ -137,6 +129,20 @@ export class SelectionManager extends EventTarget {
   }
 
   /**
+   * Выбирает все зарегистрированные меши.
+   */
+  selectAll() {
+    const meshes = Array.from(this.meshMap.values())
+      .map((record) => record?.mesh)
+      .filter((mesh) => Boolean(mesh));
+    if (meshes.length === 0) {
+      this.clearSelection();
+      return;
+    }
+    this.setSelection(/** @type {import('three').Object3D[]} */ (meshes));
+  }
+
+  /**
    * Удаляет меш из текущего выбора (например, при скрытии или удалении).
    * @param {import('three').Object3D} mesh
    */
@@ -164,9 +170,8 @@ export class SelectionManager extends EventTarget {
    * @param {boolean} additive
    */
   #selectMesh(mesh, additive) {
-    const nextSelection = additive
-      ? new Set(this.selectedMeshes).add(mesh)
-      : new Set([mesh]);
+    const nextSelection = additive ? new Set(this.selectedMeshes) : new Set();
+    nextSelection.add(mesh);
     this.#applySelection(nextSelection);
     this.lastSelectedId = mesh.uuid;
   }
@@ -205,23 +210,6 @@ export class SelectionManager extends EventTarget {
       current = current.parent;
     }
     return null;
-  }
-
-  /**
-   * Возвращает массив мешей из диапазона Map по двум идентификаторам.
-   * @param {string} startId
-   * @param {string} endId
-   * @returns {import('three').Object3D[]}
-   */
-  #getRangeBetween(startId, endId) {
-    const keys = Array.from(this.meshMap.keys());
-    const startIndex = keys.indexOf(startId);
-    const endIndex = keys.indexOf(endId);
-    if (startIndex === -1 || endIndex === -1) {
-      return [];
-    }
-    const [from, to] = startIndex <= endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
-    return keys.slice(from, to + 1).map((key) => this.meshMap.get(key)?.mesh).filter(Boolean);
   }
 
   /**

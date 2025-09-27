@@ -1,5 +1,7 @@
 import { MathUtils } from 'three';
 
+const INITIAL_TRANSFORM_KEY = '__initialTransform';
+
 /**
  * Панель XYZ для редактирования трансформаций одиночного меша.
  */
@@ -18,6 +20,9 @@ export class Inspector {
       y: /** @type {HTMLInputElement} */ (root.querySelector('[data-axis="y"]')),
       z: /** @type {HTMLInputElement} */ (root.querySelector('[data-axis="z"]')),
     };
+    this.resetButton = /** @type {HTMLButtonElement | null} */ (
+      root.querySelector('[data-inspector-reset]')
+    );
 
     this.mode = 'none';
     /** @type {import('three').Object3D | null} */
@@ -32,6 +37,13 @@ export class Inspector {
         }
       });
     });
+
+    if (this.resetButton) {
+      this.resetButton.addEventListener('click', () => {
+        this.#resetTransform();
+      });
+      this.resetButton.disabled = true;
+    }
   }
 
   /**
@@ -45,9 +57,15 @@ export class Inspector {
       this.activeMesh = [...selection][0];
       this.#syncInputs();
       this.root.classList.remove('hidden');
+      if (this.resetButton) {
+        this.resetButton.disabled = !this.#getInitialTransform(this.activeMesh);
+      }
     } else {
       this.activeMesh = null;
       this.root.classList.add('hidden');
+      if (this.resetButton) {
+        this.resetButton.disabled = true;
+      }
     }
   }
 
@@ -104,5 +122,40 @@ export class Inspector {
     this.transformManager.updateAnchorFromSelection(selectedMeshes);
     this.transformManager.refresh();
     this.#syncInputs();
+  }
+
+  /**
+   * Сбрасывает трансформацию активного меша к исходной.
+   */
+  #resetTransform() {
+    if (!this.activeMesh || this.isSyncing) {
+      return;
+    }
+    const initial = this.#getInitialTransform(this.activeMesh);
+    if (!initial) {
+      return;
+    }
+    this.activeMesh.position.copy(initial.position);
+    this.activeMesh.rotation.copy(initial.rotation);
+    this.activeMesh.scale.copy(initial.scale);
+    this.activeMesh.updateMatrixWorld(true);
+
+    const { selectedMeshes } = this.selectionManager.getSelectionState();
+    this.transformManager.updateAnchorFromSelection(selectedMeshes);
+    this.transformManager.refresh();
+    this.#syncInputs();
+  }
+
+  /**
+   * Возвращает сохранённую начальную трансформацию для меша.
+   * @param {import('three').Object3D} mesh
+   * @returns {{ position: import('three').Vector3; rotation: import('three').Euler; scale: import('three').Vector3 } | null}
+   */
+  #getInitialTransform(mesh) {
+    const data = mesh.userData?.[INITIAL_TRANSFORM_KEY];
+    if (!data || !data.position || !data.rotation || !data.scale) {
+      return null;
+    }
+    return data;
   }
 }

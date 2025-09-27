@@ -123,6 +123,32 @@ canvas#scene {
   background: #1d4ed8;
 }
 
+.panel__select-all-button {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.panel__select-all-button:hover,
+.panel__select-all-button:focus {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #1d4ed8;
+  outline: none;
+}
+
+.panel__select-all-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .panel__list {
   flex: 1;
   overflow-y: auto;
@@ -235,7 +261,7 @@ canvas#scene {
   position: absolute;
   top: 16px;
   right: calc(clamp(240px, 20vw, 360px) + 16px);
-  width: 200px;
+  width: 232px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -287,6 +313,32 @@ canvas#scene {
   border-color: #2563eb;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
   outline: none;
+}
+
+.inspector__reset {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.inspector__reset:hover,
+.inspector__reset:focus {
+  background: rgba(37, 99, 235, 0.18);
+  border-color: rgba(59, 130, 246, 0.7);
+  color: #1e3a8a;
+  outline: none;
+}
+
+.inspector__reset:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .hidden-input {

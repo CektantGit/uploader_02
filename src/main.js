@@ -55,6 +55,10 @@ panel.bindImport(async (file) => {
   }
 });
 
+panel.bindSelectAll(() => {
+  selectionManager.selectAll();
+});
+
 selectionManager.addEventListener('selectionchange', (event) => {
   const { selectedMeshes } = event.detail;
   transformManager.updateAnchorFromSelection(selectedMeshes);

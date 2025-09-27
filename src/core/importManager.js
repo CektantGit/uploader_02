@@ -53,6 +53,8 @@ const UNSUPPORTED_TEXTURE_PROPS = [
   'anisotropyMap',
 ];
 
+const INITIAL_TRANSFORM_KEY = '__initialTransform';
+
 /**
  * Отвечает за загрузку файлов и добавление новых мешей в сцену и UI.
  */
@@ -90,6 +92,16 @@ export class ImportManager {
     meshes.forEach((mesh) => {
       mesh.visible = true;
       mesh.matrixAutoUpdate = true;
+      if (!mesh.userData) {
+        mesh.userData = {};
+      }
+      if (!mesh.userData[INITIAL_TRANSFORM_KEY]) {
+        mesh.userData[INITIAL_TRANSFORM_KEY] = {
+          position: mesh.position.clone(),
+          rotation: mesh.rotation.clone(),
+          scale: mesh.scale.clone(),
+        };
+      }
       this.sceneManager.addMesh(mesh);
       const li = this.panel.createMeshRow({
         name: mesh.name,

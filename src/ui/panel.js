@@ -10,8 +10,12 @@ export class Panel {
     this.importButton = /** @type {HTMLButtonElement} */ (root.querySelector('[data-import-button]'));
     this.fileInput = /** @type {HTMLInputElement} */ (root.querySelector('[data-file-input]'));
     this.list = /** @type {HTMLUListElement} */ (root.querySelector('[data-mesh-list]'));
+    this.selectAllButton = /** @type {HTMLButtonElement} */ (root.querySelector('[data-select-all]'));
     /** @type {(file: File) => void} */
     this.onImportFile = () => {};
+    /** @type {() => void} */
+    this.onSelectAll = () => {};
+    this.meshCount = this.list?.children.length ?? 0;
 
     if (this.importButton) {
       this.importButton.addEventListener('click', () => {
@@ -20,6 +24,13 @@ export class Panel {
           this.fileInput.click();
         }
       });
+    }
+
+    if (this.selectAllButton) {
+      this.selectAllButton.addEventListener('click', () => {
+        this.onSelectAll();
+      });
+      this.#updateSelectAllState();
     }
 
     if (this.fileInput) {
@@ -39,6 +50,14 @@ export class Panel {
    */
   bindImport(handler) {
     this.onImportFile = handler;
+  }
+
+  /**
+   * Привязывает обработчик массового выбора мешей.
+   * @param {() => void} handler
+   */
+  bindSelectAll(handler) {
+    this.onSelectAll = handler;
   }
 
   /**
@@ -89,6 +108,8 @@ export class Panel {
     actions.append(hideButton, deleteButton);
     li.append(label, actions);
     this.list?.append(li);
+    this.meshCount += 1;
+    this.#updateSelectAllState();
     return li;
   }
 
@@ -99,5 +120,22 @@ export class Panel {
   removeMeshRow(uuid) {
     const row = this.list?.querySelector(`[data-uuid="${uuid}"]`);
     row?.remove();
+    if (this.meshCount > 0) {
+      this.meshCount -= 1;
+    }
+    if (this.meshCount < 0) {
+      this.meshCount = 0;
+    }
+    this.#updateSelectAllState();
+  }
+
+  /**
+   * Обновляет доступность кнопки массового выбора.
+   */
+  #updateSelectAllState() {
+    if (!this.selectAllButton) {
+      return;
+    }
+    this.selectAllButton.disabled = this.meshCount === 0;
   }
 }
