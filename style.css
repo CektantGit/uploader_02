@@ -270,11 +270,58 @@ canvas#scene {
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
+.info-field__input:hover {
+  border-color: rgba(148, 163, 184, 0.6);
+  background: rgba(255, 255, 255, 0.95);
+}
+
 .info-field__input--multiline {
   resize: vertical;
   min-height: 120px;
   font-family: inherit;
   line-height: 1.5;
+}
+
+.info-field__select {
+  position: relative;
+}
+
+.info-field__input--select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 44px;
+  cursor: pointer;
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+.info-field__input--select::-ms-expand {
+  display: none;
+}
+
+.info-field__input--select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.info-field__select::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  top: 50%;
+  right: 18px;
+  width: 10px;
+  height: 6px;
+  transform: translateY(-50%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23374151' d='M1.41.58 6 5.17 10.59.58 12 2l-6 6-6-6Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  transition: filter 0.2s ease;
+}
+
+.info-field__select:focus-within::after {
+  filter: brightness(0) saturate(100%) invert(29%) sepia(82%) saturate(3187%) hue-rotate(215deg)
+    brightness(92%) contrast(96%);
 }
 
 .info-field__input:focus {

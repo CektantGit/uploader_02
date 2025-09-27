@@ -94,13 +94,15 @@
                     ?
                   </button>
                 </span>
-                <select class="info-field__input" data-info-placement>
-                  <option value="all" data-i18n-key="placement.options.all">All</option>
-                  <option value="floor" data-i18n-key="placement.options.floor">Floor</option>
-                  <option value="wall" data-i18n-key="placement.options.wall">Wall</option>
-                  <option value="ceiling" data-i18n-key="placement.options.ceiling">Ceiling</option>
-                  <option value="carpet" data-i18n-key="placement.options.carpet">Carpet</option>
-                </select>
+                <div class="info-field__select">
+                  <select class="info-field__input info-field__input--select" data-info-placement>
+                    <option value="all" data-i18n-key="placement.options.all">All</option>
+                    <option value="floor" data-i18n-key="placement.options.floor">Floor</option>
+                    <option value="wall" data-i18n-key="placement.options.wall">Wall</option>
+                    <option value="ceiling" data-i18n-key="placement.options.ceiling">Ceiling</option>
+                    <option value="carpet" data-i18n-key="placement.options.carpet">Carpet</option>
+                  </select>
+                </div>
               </label>
             </div>
             <div class="info-panel__group">
@@ -151,17 +153,21 @@
                     ?
                   </button>
                 </span>
-                <select class="info-field__input" data-info-category>
-                  <option value="" data-i18n-key="category.placeholder">Select category</option>
-                </select>
+                <div class="info-field__select">
+                  <select class="info-field__input info-field__input--select" data-info-category>
+                    <option value="" data-i18n-key="category.placeholder">Select category</option>
+                  </select>
+                </div>
               </label>
             </div>
             <div class="info-panel__group" data-info-subcategory-group>
               <label class="info-field">
                 <span class="info-field__label" data-i18n-key="subcategory.label">Subcategory</span>
-                <select class="info-field__input" data-info-subcategory>
-                  <option value="" data-i18n-key="subcategory.placeholder">Select subcategory</option>
-                </select>
+                <div class="info-field__select">
+                  <select class="info-field__input info-field__input--select" data-info-subcategory>
+                    <option value="" data-i18n-key="subcategory.placeholder">Select subcategory</option>
+                  </select>
+                </div>
               </label>
             </div>
             <div class="info-panel__group">
@@ -178,11 +184,13 @@
                     ?
                   </button>
                 </span>
-                <select class="info-field__input" data-info-visibility>
-                  <option value="visible" data-i18n-key="visibility.options.visible">Visible everywhere</option>
-                  <option value="catalogs" data-i18n-key="visibility.options.catalogs">Only in my catalogs</option>
-                  <option value="hidden" data-i18n-key="visibility.options.hidden">Hidden everywhere</option>
-                </select>
+                <div class="info-field__select">
+                  <select class="info-field__input info-field__input--select" data-info-visibility>
+                    <option value="visible" data-i18n-key="visibility.options.visible">Visible everywhere</option>
+                    <option value="catalogs" data-i18n-key="visibility.options.catalogs">Only in my catalogs</option>
+                    <option value="hidden" data-i18n-key="visibility.options.hidden">Hidden everywhere</option>
+                  </select>
+                </div>
               </label>
             </div>
             <div class="info-panel__group">
