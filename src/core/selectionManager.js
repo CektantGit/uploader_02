@@ -81,16 +81,16 @@ export class SelectionManager extends EventTarget {
   /**
    * Обработка клика по строке списка.
    * @param {string} uuid
-   * @param {boolean} withShift
+   * @param {boolean} withCtrl
    */
-  selectFromList(uuid, withShift) {
+  selectFromList(uuid, withCtrl) {
     if (!this.meshMap.has(uuid)) {
       return;
     }
 
     const mesh = this.meshMap.get(uuid)?.mesh ?? null;
     if (mesh) {
-      this.#selectMesh(mesh, withShift);
+      this.#selectMesh(mesh, withCtrl);
     }
   }
 

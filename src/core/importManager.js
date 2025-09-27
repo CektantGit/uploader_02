@@ -106,7 +106,8 @@ export class ImportManager {
       const li = this.panel.createMeshRow({
         name: mesh.name,
         onClick: (event) => {
-          this.selectionManager.selectFromList(mesh.uuid, event.shiftKey);
+          const additive = event.ctrlKey || event.metaKey;
+          this.selectionManager.selectFromList(mesh.uuid, additive);
         },
         onHide: () => {
           mesh.visible = !mesh.visible;

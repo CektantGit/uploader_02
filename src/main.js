@@ -116,5 +116,6 @@ canvas.addEventListener('pointerup', (event) => {
       break;
     }
   }
-  selectionManager.selectFromScene(targetMesh, event.shiftKey);
+  const additive = event.ctrlKey || event.metaKey;
+  selectionManager.selectFromScene(targetMesh, additive);
 });
