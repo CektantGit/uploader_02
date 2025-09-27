@@ -6,14 +6,16 @@ import { Inspector } from './ui/inspector.js';
 import { Panel } from './ui/panel.js';
 import { Toolbar } from './ui/toolbar.js';
 import { MaterialPanel } from './ui/materialPanel.js';
+import { InfoPanel } from './ui/infoPanel.js';
 
 const canvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById('scene'));
 const panelElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-panel]'));
 const toolbarElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-toolbar]'));
 const inspectorElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-inspector]'));
 const materialPanelElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-material-panel]'));
+const infoPanelElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-info-panel]'));
 
-if (!canvas || !panelElement || !toolbarElement || !inspectorElement || !materialPanelElement) {
+if (!canvas || !panelElement || !toolbarElement || !inspectorElement || !materialPanelElement || !infoPanelElement) {
   throw new Error('UI elements are missing in the document.');
 }
 
@@ -25,6 +27,7 @@ const toolbar = new Toolbar(toolbarElement);
 const inspector = new Inspector(inspectorElement, transformManager, selectionManager);
 const importManager = new ImportManager(sceneManager, selectionManager, panel);
 const materialPanel = new MaterialPanel(materialPanelElement);
+const infoPanel = new InfoPanel(infoPanelElement);
 
 materialPanel.update(selectionManager.getSelectionState().selectedMeshes);
 

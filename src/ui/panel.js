@@ -11,11 +11,24 @@ export class Panel {
     this.fileInput = /** @type {HTMLInputElement} */ (root.querySelector('[data-file-input]'));
     this.list = /** @type {HTMLUListElement} */ (root.querySelector('[data-mesh-list]'));
     this.selectAllButton = /** @type {HTMLButtonElement} */ (root.querySelector('[data-select-all]'));
+    this.tabButtons = /** @type {HTMLButtonElement[]} */ (
+      Array.from(root.querySelectorAll('[data-panel-tab]'))
+    );
+    this.sections = new Map(
+      Array.from(root.querySelectorAll('[data-panel-section]')).map((section) => [
+        section.getAttribute('data-panel-section') || '',
+        section,
+      ]),
+    );
+    const defaultTab = this.tabButtons.find((button) => button.classList.contains('panel__tab--active'));
+    this.activeSection = defaultTab?.getAttribute('data-panel-tab') || 'info';
     /** @type {(file: File) => void} */
     this.onImportFile = () => {};
     /** @type {() => void} */
     this.onSelectAll = () => {};
     this.meshCount = this.list?.children.length ?? 0;
+
+    this.#bindTabs();
 
     if (this.importButton) {
       this.importButton.addEventListener('click', () => {
@@ -41,6 +54,42 @@ export class Panel {
         const files = Array.from(this.fileInput.files);
         files.forEach((file) => this.onImportFile(file));
       });
+    }
+  }
+
+  /**
+   * Настраивает переключение вкладок панели.
+   */
+  #bindTabs() {
+    for (const button of this.tabButtons) {
+      button.addEventListener('click', () => {
+        const target = button.getAttribute('data-panel-tab') || '';
+        if (!target) {
+          return;
+        }
+        this.#setActiveSection(target);
+      });
+    }
+    if (this.activeSection) {
+      this.#setActiveSection(this.activeSection);
+    }
+  }
+
+  /**
+   * Переключает текущую видимую секцию панели.
+   * @param {string} sectionName
+   */
+  #setActiveSection(sectionName) {
+    this.activeSection = sectionName;
+    for (const button of this.tabButtons) {
+      const isActive = button.getAttribute('data-panel-tab') === sectionName;
+      button.classList.toggle('panel__tab--active', isActive);
+    }
+    for (const [name, section] of this.sections.entries()) {
+      if (!name) {
+        continue;
+      }
+      section.classList.toggle('panel__section--active', name === sectionName);
     }
   }
 
