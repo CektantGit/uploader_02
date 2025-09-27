@@ -257,19 +257,6 @@ canvas#scene {
   color: #0f172a;
 }
 
-.info-field__label--with-help {
-  position: relative;
-  display: block;
-  padding-right: 32px;
-}
-
-.info-field__label--with-help .material-section__help-button {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  transform: translateY(-50%);
-}
-
 .info-field__label--split {
   justify-content: space-between;
 }
