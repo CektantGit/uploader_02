@@ -284,15 +284,31 @@ canvas#scene {
 
 .info-field__select {
   position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.92);
+  padding: 2px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.info-field__select:hover {
+  border-color: rgba(59, 130, 246, 0.45);
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .info-field__input--select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  padding-right: 44px;
+  width: 100%;
+  padding: 10px 44px 10px 14px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #0f172a;
   cursor: pointer;
-  background-color: rgba(255, 255, 255, 0.9);
 }
 
 .info-field__input--select::-ms-expand {
@@ -309,7 +325,7 @@ canvas#scene {
   position: absolute;
   pointer-events: none;
   top: 50%;
-  right: 18px;
+  right: 16px;
   width: 10px;
   height: 6px;
   transform: translateY(-50%);
@@ -319,16 +335,30 @@ canvas#scene {
   transition: filter 0.2s ease;
 }
 
+.info-field__select:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  background: #ffffff;
+}
+
+.info-field__input--select:focus {
+  outline: none;
+  box-shadow: none;
+}
+
 .info-field__select:focus-within::after {
   filter: brightness(0) saturate(100%) invert(29%) sepia(82%) saturate(3187%) hue-rotate(215deg)
     brightness(92%) contrast(96%);
 }
 
 .info-field__input:focus {
+  outline: none;
+}
+
+.info-field__input:not(.info-field__input--select):focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
   background: #ffffff;
-  outline: none;
 }
 
 .info-field__help {
