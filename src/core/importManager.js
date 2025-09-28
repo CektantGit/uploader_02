@@ -121,6 +121,10 @@ export class ImportManager {
       });
       this.selectionManager.registerMesh(mesh, li);
     });
+
+    if (meshes.length > 0) {
+      this.sceneManager.frameMeshes(meshes);
+    }
   }
 
   /**

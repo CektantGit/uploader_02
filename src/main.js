@@ -13,10 +13,23 @@ const canvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById(
 const panelElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-panel]'));
 const toolbarElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-toolbar]'));
 const inspectorElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-inspector]'));
-const materialPanelElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-material-panel]'));
+const materialPanelElement = /** @type {HTMLElement | null} */ (
+  document.querySelector('[data-material-panel]'),
+);
 const infoPanelElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-info-panel]'));
+const dimensionToggle = /** @type {HTMLInputElement | null} */ (
+  document.querySelector('[data-dimension-toggle]'),
+);
 
-if (!canvas || !panelElement || !toolbarElement || !inspectorElement || !materialPanelElement || !infoPanelElement) {
+if (
+  !canvas ||
+  !panelElement ||
+  !toolbarElement ||
+  !inspectorElement ||
+  !materialPanelElement ||
+  !infoPanelElement ||
+  !dimensionToggle
+) {
   throw new Error('UI elements are missing in the document.');
 }
 
@@ -32,6 +45,14 @@ const materialPanel = new MaterialPanel(materialPanelElement);
 const infoPanel = new InfoPanel(infoPanelElement);
 
 materialPanel.update(selectionManager.getSelectionState().selectedMeshes);
+sceneManager.updateDimensionTargets(selectionManager.getSelectionState().selectedMeshes);
+
+sceneManager.setDimensionEnabled(dimensionToggle.checked);
+
+dimensionToggle.addEventListener('change', () => {
+  sceneManager.setDimensionEnabled(dimensionToggle.checked);
+  sceneManager.updateDimensionTargets(selectionManager.getSelectionState().selectedMeshes);
+});
 
 let pointerDownPosition = null;
 let transformRecentlyActive = false;
@@ -55,6 +76,7 @@ toolbar.setActiveMode('none');
 panel.bindImport(async (file) => {
   try {
     await importManager.importModel(file);
+    sceneManager.updateDimensionTargets(selectionManager.getSelectionState().selectedMeshes);
   } catch (error) {
     console.error('Error importing model', error);
   }
@@ -69,6 +91,7 @@ selectionManager.addEventListener('selectionchange', (event) => {
   transformManager.updateAnchorFromSelection(selectedMeshes);
   inspector.update(selectedMeshes, transformManager.mode);
   materialPanel.update(selectedMeshes);
+  sceneManager.updateDimensionTargets(selectedMeshes);
 });
 
 transformManager.addEventListener('transformchange', () => {

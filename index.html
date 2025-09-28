@@ -23,6 +23,20 @@
   <body>
     <div id="app">
       <canvas id="scene"></canvas>
+      <div class="viewer-controls">
+        <label class="viewer-toggle">
+          <input
+            type="checkbox"
+            class="viewer-toggle__input"
+            data-dimension-toggle
+            aria-label="Toggle dimension helper"
+          />
+          <span class="viewer-toggle__switch" aria-hidden="true">
+            <span class="viewer-toggle__thumb"></span>
+          </span>
+          <span class="viewer-toggle__text">Dimension</span>
+        </label>
+      </div>
       <aside class="panel panel--left" data-panel>
         <div class="panel__tabs" role="tablist">
           <button
