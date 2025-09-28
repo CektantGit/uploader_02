@@ -14,10 +14,12 @@ const MODE_MAP = {
 export class TransformManager extends EventTarget {
   /**
    * @param {import('./sceneManager.js').SceneManager} sceneManager
+   * @param {import('./undoManager.js').UndoManager} undoManager
    */
-  constructor(sceneManager) {
+  constructor(sceneManager, undoManager) {
     super();
     this.sceneManager = sceneManager;
+    this.undoManager = undoManager;
     this.mode = 'none';
     this.anchor = new Object3D();
     this.anchor.name = 'SelectionAnchor';
@@ -36,6 +38,7 @@ export class TransformManager extends EventTarget {
 
     this.isDragging = false;
     this.dragState = null;
+    this.pendingUndoSnapshot = null;
 
     this.transformControls.addEventListener('dragging-changed', (event) => {
       this.isDragging = event.value;
@@ -43,9 +46,16 @@ export class TransformManager extends EventTarget {
         this.sceneManager.controls.enabled = !event.value;
       }
       if (event.value) {
+        if (this.undoManager) {
+          this.pendingUndoSnapshot = this.undoManager.captureSnapshot(this.currentSelection);
+        }
         this.#cacheRelativeStates();
       } else {
         this.dragState = null;
+        if (this.undoManager && this.pendingUndoSnapshot) {
+          this.undoManager.commitSnapshot(this.pendingUndoSnapshot);
+        }
+        this.pendingUndoSnapshot = null;
         this.dispatchEvent(new CustomEvent('transformcommit', { detail: this.getState() }));
       }
       this.dispatchEvent(new CustomEvent('draggingchange', { detail: { dragging: this.isDragging } }));

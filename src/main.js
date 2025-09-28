@@ -2,6 +2,7 @@ import { ImportManager } from './core/importManager.js';
 import { SceneManager } from './core/sceneManager.js';
 import { SelectionManager } from './core/selectionManager.js';
 import { TransformManager } from './core/transformManager.js';
+import { UndoManager } from './core/undoManager.js';
 import { Inspector } from './ui/inspector.js';
 import { Panel } from './ui/panel.js';
 import { Toolbar } from './ui/toolbar.js';
@@ -21,10 +22,11 @@ if (!canvas || !panelElement || !toolbarElement || !inspectorElement || !materia
 
 const sceneManager = new SceneManager(canvas);
 const selectionManager = new SelectionManager();
-const transformManager = new TransformManager(sceneManager);
+const undoManager = new UndoManager();
+const transformManager = new TransformManager(sceneManager, undoManager);
 const panel = new Panel(panelElement);
 const toolbar = new Toolbar(toolbarElement);
-const inspector = new Inspector(inspectorElement, transformManager, selectionManager);
+const inspector = new Inspector(inspectorElement, transformManager, selectionManager, undoManager);
 const importManager = new ImportManager(sceneManager, selectionManager, panel);
 const materialPanel = new MaterialPanel(materialPanelElement);
 const infoPanel = new InfoPanel(infoPanelElement);
@@ -91,6 +93,34 @@ transformManager.addEventListener('draggingchange', (event) => {
       transformRecentlyActive = false;
     }, 50);
   }
+});
+
+window.addEventListener('keydown', (event) => {
+  if (!(event.ctrlKey || event.metaKey) || event.shiftKey) {
+    return;
+  }
+  if (event.key.toLowerCase() !== 'z') {
+    return;
+  }
+  const target = /** @type {EventTarget | null} */ (event.target);
+  if (
+    target &&
+    (target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      (target instanceof HTMLElement && target.isContentEditable))
+  ) {
+    return;
+  }
+  const result = undoManager.undo();
+  if (!result) {
+    return;
+  }
+  event.preventDefault();
+  const { selectedMeshes } = selectionManager.getSelectionState();
+  transformManager.updateAnchorFromSelection(selectedMeshes);
+  transformManager.refresh();
+  inspector.update(selectedMeshes, transformManager.mode);
 });
 
 canvas.addEventListener('pointerdown', (event) => {

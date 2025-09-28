@@ -10,11 +10,13 @@ export class Inspector {
    * @param {HTMLElement} root
    * @param {import('../core/transformManager.js').TransformManager} transformManager
    * @param {import('../core/selectionManager.js').SelectionManager} selectionManager
+   * @param {import('../core/undoManager.js').UndoManager} undoManager
    */
-  constructor(root, transformManager, selectionManager) {
+  constructor(root, transformManager, selectionManager, undoManager) {
     this.root = root;
     this.transformManager = transformManager;
     this.selectionManager = selectionManager;
+    this.undoManager = undoManager;
     this.inputs = {
       x: /** @type {HTMLInputElement} */ (root.querySelector('[data-axis="x"]')),
       y: /** @type {HTMLInputElement} */ (root.querySelector('[data-axis="y"]')),
@@ -101,6 +103,7 @@ export class Inspector {
     if (!this.activeMesh || this.isSyncing) {
       return;
     }
+    const snapshot = this.undoManager?.captureSnapshot([this.activeMesh]);
     const parse = (value) => {
       const number = Number(value);
       return Number.isFinite(number) ? number : 0;
@@ -122,6 +125,9 @@ export class Inspector {
     this.transformManager.updateAnchorFromSelection(selectedMeshes);
     this.transformManager.refresh();
     this.#syncInputs();
+    if (snapshot) {
+      this.undoManager?.commitSnapshot(snapshot);
+    }
   }
 
   /**
@@ -135,6 +141,7 @@ export class Inspector {
     if (!initial) {
       return;
     }
+    const snapshot = this.undoManager?.captureSnapshot([this.activeMesh]);
     this.activeMesh.position.copy(initial.position);
     this.activeMesh.rotation.copy(initial.rotation);
     this.activeMesh.scale.copy(initial.scale);
@@ -144,6 +151,9 @@ export class Inspector {
     this.transformManager.updateAnchorFromSelection(selectedMeshes);
     this.transformManager.refresh();
     this.#syncInputs();
+    if (snapshot) {
+      this.undoManager?.commitSnapshot(snapshot);
+    }
   }
 
   /**
