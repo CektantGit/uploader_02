@@ -93,6 +93,9 @@ export class TransformManager extends EventTarget {
       }
       this.transformControls.visible = hasSelection;
     }
+    if (this.currentSelection.size > 0) {
+      this.updateAnchorFromSelection(this.currentSelection);
+    }
     if (previousMode !== mode) {
       this.dispatchEvent(new CustomEvent('modechange', { detail: { mode } }));
     }
