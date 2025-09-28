@@ -255,10 +255,6 @@ canvas#scene {
   gap: 8px;
 }
 
-.info-field__header .info-field__label {
-  flex: 1;
-}
-
 .info-field__header .material-section__help-button {
   flex-shrink: 0;
 }
