@@ -109,9 +109,9 @@ canvas#scene {
   flex: 1;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  background: rgba(255, 255, 255, 0.75);
-  color: #1e293b;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(248, 250, 252, 0.85);
+  color: #0f172a;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -120,17 +120,18 @@ canvas#scene {
 
 .panel__tab:hover,
 .panel__tab:focus {
-  background: rgba(15, 23, 42, 0.75);
-  border-color: rgba(15, 23, 42, 0.85);
-  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(148, 163, 184, 0.6);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  color: #0f172a;
   outline: none;
 }
 
 .panel__tab--active {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: #f8fafc;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.45);
+  background: #ffffff;
+  border-color: rgba(59, 130, 246, 0.45);
+  color: #0f172a;
+  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.25);
 }
 
 .panel__section {
