@@ -60,13 +60,7 @@ export class SelectionManager extends EventTarget {
    */
   selectFromScene(object, additive) {
     const mesh = this.findRegisteredMesh(object);
-    if (!mesh) {
-      if (!additive) {
-        this.clearSelection();
-      }
-      return;
-    }
-    this.#selectMesh(mesh, additive);
+    this.selectMeshes(mesh ? [mesh] : [], additive);
   }
 
   /**
@@ -84,13 +78,41 @@ export class SelectionManager extends EventTarget {
    * @param {boolean} withCtrl
    */
   selectFromList(uuid, withCtrl) {
-    if (!this.meshMap.has(uuid)) {
+    const mesh = this.meshMap.get(uuid)?.mesh ?? null;
+    this.selectMeshes(mesh ? [mesh] : [], withCtrl);
+  }
+
+  /**
+   * Унифицированный обработчик выбора мешей независимо от источника.
+   * @param {import('three').Object3D[]} meshes
+   * @param {boolean} additive
+   */
+  selectMeshes(meshes, additive) {
+    if (meshes.length === 0) {
+      if (!additive) {
+        this.clearSelection();
+      }
       return;
     }
 
-    const mesh = this.meshMap.get(uuid)?.mesh ?? null;
-    if (mesh) {
-      this.#selectMesh(mesh, withCtrl);
+    const nextSelection = additive ? new Set(this.selectedMeshes) : new Set();
+    meshes.forEach((mesh) => {
+      if (this.meshMap.has(mesh.uuid)) {
+        nextSelection.add(mesh);
+      }
+    });
+
+    if (nextSelection.size === 0) {
+      if (!additive) {
+        this.clearSelection();
+      }
+      return;
+    }
+
+    this.#applySelection(nextSelection);
+    const last = meshes[meshes.length - 1];
+    if (last && this.meshMap.has(last.uuid)) {
+      this.lastSelectedId = last.uuid;
     }
   }
 
@@ -169,13 +191,6 @@ export class SelectionManager extends EventTarget {
    * @param {import('three').Object3D} mesh
    * @param {boolean} additive
    */
-  #selectMesh(mesh, additive) {
-    const nextSelection = additive ? new Set(this.selectedMeshes) : new Set();
-    nextSelection.add(mesh);
-    this.#applySelection(nextSelection);
-    this.lastSelectedId = mesh.uuid;
-  }
-
   /**
    * Применяет новый набор выбранных мешей, обновляя визуальное состояние.
    * @param {Set<import('three').Object3D>} newSelection
