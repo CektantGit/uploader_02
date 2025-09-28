@@ -31,7 +31,7 @@ export class SceneManager {
     const near = 0.1;
     const far = 1000;
     this.camera = new PerspectiveCamera(fov, aspect, near, far);
-    this.camera.position.set(3, 3, 6);
+    this.camera.position.set(3, 3.5, 6);
 
     this.renderer = new WebGLRenderer({ canvas: this.canvas, antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
