@@ -118,8 +118,8 @@ canvas#scene {
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.panel__tab:hover,
-.panel__tab:focus {
+.panel__tab:hover:not(.panel__tab--active),
+.panel__tab:focus-visible:not(.panel__tab--active) {
   background: rgba(255, 255, 255, 0.95);
   border-color: rgba(148, 163, 184, 0.6);
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
@@ -128,10 +128,10 @@ canvas#scene {
 }
 
 .panel__tab--active {
-  background: #ffffff;
-  border-color: rgba(59, 130, 246, 0.45);
+  background: rgba(226, 232, 240, 0.9);
+  border-color: rgba(148, 163, 184, 0.55);
   color: #0f172a;
-  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.35);
 }
 
 .panel__section {
