@@ -75,9 +75,7 @@ export class TransformManager extends EventTarget {
    * @param {'none' | 'translate' | 'rotate' | 'scale'} mode
    */
   setMode(mode) {
-    if (this.mode === mode) {
-      return;
-    }
+    const previousMode = this.mode;
     this.mode = mode;
     if (mode === 'none') {
       this.transformControls.detach();
@@ -87,12 +85,17 @@ export class TransformManager extends EventTarget {
       if (controlsMode) {
         this.transformControls.setMode(controlsMode);
       }
-      this.transformControls.visible = this.currentSelection.size > 0;
-      if (this.currentSelection.size > 0 && this.transformControls.object !== this.anchor) {
+      const hasSelection = this.currentSelection.size > 0;
+      if (hasSelection) {
         this.transformControls.attach(this.anchor);
+      } else {
+        this.transformControls.detach();
       }
+      this.transformControls.visible = hasSelection;
     }
-    this.dispatchEvent(new CustomEvent('modechange', { detail: { mode } }));
+    if (previousMode !== mode) {
+      this.dispatchEvent(new CustomEvent('modechange', { detail: { mode } }));
+    }
   }
 
   /**
@@ -144,9 +147,11 @@ export class TransformManager extends EventTarget {
     }
 
     this.anchor.updateMatrixWorld(true);
-    if (this.mode !== 'none') {
+    const shouldShow = this.mode !== 'none' && this.currentSelection.size > 0;
+    if (shouldShow) {
       this.transformControls.attach(this.anchor);
       this.transformControls.visible = true;
+      this.transformControls.updateMatrixWorld(true);
     } else {
       this.transformControls.detach();
       this.transformControls.visible = false;

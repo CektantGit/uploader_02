@@ -84,6 +84,7 @@ export class Panel {
     for (const button of this.tabButtons) {
       const isActive = button.getAttribute('data-panel-tab') === sectionName;
       button.classList.toggle('panel__tab--active', isActive);
+      button.setAttribute('aria-pressed', String(isActive));
     }
     for (const [name, section] of this.sections.entries()) {
       if (!name) {
