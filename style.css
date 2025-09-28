@@ -13,6 +13,10 @@ body {
   background: #ffffff;
 }
 
+:root {
+  --side-panel-width: clamp(240px, 20vw, 360px);
+}
+
 #app {
   position: relative;
   width: 100%;
@@ -27,8 +31,8 @@ canvas#scene {
 
 .viewer-controls {
   position: absolute;
-  top: 24px;
-  right: 24px;
+  left: calc(var(--side-panel-width) + 24px);
+  bottom: 24px;
   z-index: 12;
   display: flex;
   align-items: center;
@@ -104,9 +108,7 @@ canvas#scene {
 .panel {
   position: absolute;
   top: 0;
-  width: 20%;
-  min-width: 240px;
-  max-width: 360px;
+  width: var(--side-panel-width);
   height: 100%;
   display: flex;
   flex-direction: column;

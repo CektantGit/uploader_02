@@ -14,11 +14,11 @@ const panelElement = /** @type {HTMLElement | null} */ (document.querySelector('
 const toolbarElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-toolbar]'));
 const inspectorElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-inspector]'));
 const materialPanelElement = /** @type {HTMLElement | null} */ (
-  document.querySelector('[data-material-panel]'),
+  document.querySelector('[data-material-panel]')
 );
 const infoPanelElement = /** @type {HTMLElement | null} */ (document.querySelector('[data-info-panel]'));
 const dimensionToggle = /** @type {HTMLInputElement | null} */ (
-  document.querySelector('[data-dimension-toggle]'),
+  document.querySelector('[data-dimension-toggle]')
 );
 
 if (
