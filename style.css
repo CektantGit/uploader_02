@@ -700,9 +700,9 @@ canvas#scene {
   width: 20px;
   height: 20px;
   border-radius: 999px;
-  border: 1px solid rgba(15, 23, 42, 0.2);
-  background: rgba(255, 255, 255, 0.9);
-  color: #1f2937;
+  border: none;
+  background: rgba(148, 163, 184, 0.28);
+  color: #0f172a;
   font-size: 12px;
   font-weight: 600;
   line-height: 1;
@@ -711,18 +711,17 @@ canvas#scene {
   justify-content: center;
   padding: 0;
   cursor: help;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .material-section__help-button:hover,
 .material-section__help-button:focus-visible {
-  background: #2563eb;
+  background: rgba(15, 23, 42, 0.92);
   color: #f8fafc;
-  border-color: rgba(37, 99, 235, 0.4);
 }
 
 .material-section__help-button:focus-visible {
-  outline: 2px solid rgba(37, 99, 235, 0.6);
+  outline: 2px solid rgba(15, 23, 42, 0.5);
   outline-offset: 2px;
 }
 
