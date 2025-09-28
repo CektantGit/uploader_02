@@ -81,9 +81,15 @@
               </label>
             </div>
             <div class="info-panel__group">
-              <label class="info-field">
-                <span class="info-field__label material-section__label">
-                  <span data-i18n-key="placement.label">Placement type</span>
+              <div class="info-field">
+                <div class="info-field__header material-section__label">
+                  <label
+                    class="info-field__label"
+                    for="info-placement"
+                    data-i18n-key="placement.label"
+                  >
+                    Placement type
+                  </label>
                   <button
                     type="button"
                     class="material-section__help-button"
@@ -93,9 +99,13 @@
                   >
                     ?
                   </button>
-                </span>
+                </div>
                 <div class="info-field__select">
-                  <select class="info-field__input info-field__input--select" data-info-placement>
+                  <select
+                    id="info-placement"
+                    class="info-field__input info-field__input--select"
+                    data-info-placement
+                  >
                     <option value="all" data-i18n-key="placement.options.all">All</option>
                     <option value="floor" data-i18n-key="placement.options.floor">Floor</option>
                     <option value="wall" data-i18n-key="placement.options.wall">Wall</option>
@@ -103,12 +113,18 @@
                     <option value="carpet" data-i18n-key="placement.options.carpet">Carpet</option>
                   </select>
                 </div>
-              </label>
+              </div>
             </div>
             <div class="info-panel__group">
-              <label class="info-field">
-                <span class="info-field__label material-section__label">
-                  <span data-i18n-key="destination.label">Destination Url</span>
+              <div class="info-field">
+                <div class="info-field__header material-section__label">
+                  <label
+                    class="info-field__label"
+                    for="info-destination"
+                    data-i18n-key="destination.label"
+                  >
+                    Destination Url
+                  </label>
                   <button
                     type="button"
                     class="material-section__help-button"
@@ -118,15 +134,16 @@
                   >
                     ?
                   </button>
-                </span>
+                </div>
                 <input
                   type="url"
                   class="info-field__input"
+                  id="info-destination"
                   placeholder="https://"
                   data-info-destination
                   data-i18n-placeholder="destination.placeholder"
                 />
-              </label>
+              </div>
             </div>
             <div class="info-panel__group">
               <label class="info-field">
@@ -140,9 +157,15 @@
               </label>
             </div>
             <div class="info-panel__group">
-              <label class="info-field">
-                <span class="info-field__label material-section__label">
-                  <span data-i18n-key="category.label">Category</span>
+              <div class="info-field">
+                <div class="info-field__header material-section__label">
+                  <label
+                    class="info-field__label"
+                    for="info-category"
+                    data-i18n-key="category.label"
+                  >
+                    Category
+                  </label>
                   <button
                     type="button"
                     class="material-section__help-button"
@@ -152,28 +175,42 @@
                   >
                     ?
                   </button>
-                </span>
+                </div>
                 <div class="info-field__select">
-                  <select class="info-field__input info-field__input--select" data-info-category>
+                  <select
+                    id="info-category"
+                    class="info-field__input info-field__input--select"
+                    data-info-category
+                  >
                     <option value="" data-i18n-key="category.placeholder">Select category</option>
                   </select>
                 </div>
-              </label>
+              </div>
             </div>
             <div class="info-panel__group" data-info-subcategory-group>
               <label class="info-field">
                 <span class="info-field__label" data-i18n-key="subcategory.label">Subcategory</span>
                 <div class="info-field__select">
-                  <select class="info-field__input info-field__input--select" data-info-subcategory>
+                  <select
+                    id="info-subcategory"
+                    class="info-field__input info-field__input--select"
+                    data-info-subcategory
+                  >
                     <option value="" data-i18n-key="subcategory.placeholder">Select subcategory</option>
                   </select>
                 </div>
               </label>
             </div>
             <div class="info-panel__group">
-              <label class="info-field">
-                <span class="info-field__label material-section__label">
-                  <span data-i18n-key="visibility.label">Visibility</span>
+              <div class="info-field">
+                <div class="info-field__header material-section__label">
+                  <label
+                    class="info-field__label"
+                    for="info-visibility"
+                    data-i18n-key="visibility.label"
+                  >
+                    Visibility
+                  </label>
                   <button
                     type="button"
                     class="material-section__help-button"
@@ -183,15 +220,19 @@
                   >
                     ?
                   </button>
-                </span>
+                </div>
                 <div class="info-field__select">
-                  <select class="info-field__input info-field__input--select" data-info-visibility>
+                  <select
+                    id="info-visibility"
+                    class="info-field__input info-field__input--select"
+                    data-info-visibility
+                  >
                     <option value="visible" data-i18n-key="visibility.options.visible">Visible everywhere</option>
                     <option value="catalogs" data-i18n-key="visibility.options.catalogs">Only in my catalogs</option>
                     <option value="hidden" data-i18n-key="visibility.options.hidden">Hidden everywhere</option>
                   </select>
                 </div>
-              </label>
+              </div>
             </div>
             <div class="info-panel__group">
               <div class="info-field info-field--stacked">
