@@ -109,6 +109,9 @@ export class ImportManager {
           const additive = event.ctrlKey || event.metaKey;
           this.selectionManager.selectFromList(mesh.uuid, additive);
         },
+        onDoubleClick: () => {
+          this.sceneManager.focusMesh(mesh);
+        },
         onHide: () => {
           mesh.visible = !mesh.visible;
           return mesh.visible;

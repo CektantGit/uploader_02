@@ -253,14 +253,10 @@ export class SceneManager {
 
   /**
    * Обновляет набор мешей, для которых рисуются размеры.
-   * @param {Set<import('three').Object3D>} selectedMeshes
    */
-  updateDimensionTargets(selectedMeshes) {
-    const useSelection = selectedMeshes && selectedMeshes.size > 0;
-    this.dimensionState.useSelection = useSelection;
-    this.dimensionState.targets = useSelection
-      ? Array.from(selectedMeshes)
-      : Array.from(this.meshRegistry);
+  updateDimensionTargets() {
+    this.dimensionState.useSelection = false;
+    this.dimensionState.targets = Array.from(this.meshRegistry);
     if (this.dimensionState.enabled) {
       this.#refreshDimensionOverlay();
     }
@@ -310,11 +306,22 @@ export class SceneManager {
     this.controls.target.copy(center);
     this.controls.update();
 
-    const near = Math.max(offsetDistance / 50, 0.1);
+    const near = Math.max(maxDim / 500, 0.1);
     const far = Math.max(offsetDistance * 10, near + 10);
     this.camera.near = near;
     this.camera.far = far;
     this.camera.updateProjectionMatrix();
+  }
+
+  /**
+   * Центрирует камеру на выбранном меше.
+   * @param {import('three').Object3D | null} mesh
+   */
+  focusMesh(mesh) {
+    if (!mesh) {
+      return;
+    }
+    this.frameMeshes([mesh]);
   }
 
   /**
@@ -376,28 +383,28 @@ export class SceneManager {
       return;
     }
 
-    const padding = Math.max(maxDim * 0.08, 0.1);
-    const labelOffset = Math.max(maxDim * 0.05, 0.08);
-    const dashSize = Math.max(maxDim * 0.12, 0.12);
-    const gapSize = dashSize * 0.55;
+    const offset = Math.max(maxDim * 0.02, 0.04);
+    const labelOffset = Math.max(maxDim * 0.03, 0.06);
+    const dashSize = Math.max(maxDim * 0.04, 0.05);
+    const gapSize = dashSize * 0.65;
 
     const min = box.min.clone();
     const max = box.max.clone();
 
-    const widthStart = new Vector3(min.x, min.y, max.z + padding);
-    const widthEnd = new Vector3(max.x, min.y, max.z + padding);
+    const widthStart = new Vector3(min.x, min.y - offset, max.z + offset);
+    const widthEnd = new Vector3(max.x, min.y - offset, max.z + offset);
 
-    const depthStart = new Vector3(max.x + padding, min.y, min.z);
-    const depthEnd = new Vector3(max.x + padding, min.y, max.z);
+    const depthStart = new Vector3(max.x + offset, min.y - offset, min.z);
+    const depthEnd = new Vector3(max.x + offset, min.y - offset, max.z);
 
-    const heightStart = new Vector3(max.x, min.y - padding, max.z + padding);
-    const heightEnd = new Vector3(max.x, max.y + padding, max.z + padding);
+    const heightStart = new Vector3(max.x + offset, min.y, max.z + offset);
+    const heightEnd = new Vector3(max.x + offset, max.y, max.z + offset);
 
     this.#updateDimensionLine(this.dimensionLines.width, widthStart, widthEnd, dashSize, gapSize);
     this.#updateDimensionLine(this.dimensionLines.depth, depthStart, depthEnd, dashSize, gapSize);
     this.#updateDimensionLine(this.dimensionLines.height, heightStart, heightEnd, dashSize, gapSize);
 
-    const baseScale = Math.max(maxDim * 0.25, 0.45);
+    const baseScale = Math.max(maxDim * 0.18, 0.32);
 
     const widthLabel = this.dimensionLabels.width;
     widthLabel.position.copy(widthStart.clone().lerp(widthEnd, 0.5));
@@ -423,8 +430,8 @@ export class SceneManager {
    */
   #createDimensionLabel() {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 128;
+    canvas.width = 192;
+    canvas.height = 96;
     const texture = new CanvasTexture(canvas);
     texture.colorSpace = SRGBColorSpace;
     texture.needsUpdate = true;
@@ -471,19 +478,19 @@ export class SceneManager {
    */
   #updateDimensionLabel(sprite, text, baseScale) {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 128;
+    canvas.width = 192;
+    canvas.height = 96;
     const context = canvas.getContext('2d');
     if (!context) {
       return;
     }
 
     context.clearRect(0, 0, canvas.width, canvas.height);
-    const radius = 40;
-    const paddingX = 12;
-    const paddingY = 16;
+    const radius = 20;
+    const paddingX = 10;
+    const paddingY = 12;
 
-    context.fillStyle = 'rgba(15, 23, 42, 0.92)';
+    context.fillStyle = 'rgba(15, 23, 42, 0.9)';
     context.beginPath();
     context.moveTo(paddingX + radius, paddingY);
     context.lineTo(canvas.width - paddingX - radius, paddingY);
@@ -513,7 +520,7 @@ export class SceneManager {
     context.fill();
 
     context.fillStyle = '#ffffff';
-    context.font = '700 44px "Inter", sans-serif';
+    context.font = '600 32px "Inter", sans-serif';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillText(text, canvas.width / 2, canvas.height / 2);

@@ -112,10 +112,16 @@ export class Panel {
 
   /**
    * Создаёт DOM-строку для меша.
-   * @param {{ name: string, onClick: (event: MouseEvent) => void, onHide: () => boolean, onDelete: () => void }} config
+   * @param {{
+   *   name: string,
+   *   onClick: (event: MouseEvent) => void,
+   *   onDoubleClick?: (event: MouseEvent) => void,
+   *   onHide: () => boolean,
+   *   onDelete: () => void
+   * }} config
    * @returns {HTMLLIElement}
    */
-  createMeshRow({ name, onClick, onHide, onDelete }) {
+  createMeshRow({ name, onClick, onDoubleClick, onHide, onDelete }) {
     const li = document.createElement('li');
     li.className = 'mesh-row';
 
@@ -142,6 +148,18 @@ export class Panel {
       }
       onClick(event);
     });
+
+    if (onDoubleClick) {
+      li.addEventListener('dblclick', (event) => {
+        if (
+          event.target instanceof HTMLElement &&
+          event.target.closest('.mesh-row__actions')
+        ) {
+          return;
+        }
+        onDoubleClick(event);
+      });
+    }
 
     hideButton.addEventListener('click', (event) => {
       event.stopPropagation();

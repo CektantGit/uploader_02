@@ -45,13 +45,13 @@ const materialPanel = new MaterialPanel(materialPanelElement);
 const infoPanel = new InfoPanel(infoPanelElement);
 
 materialPanel.update(selectionManager.getSelectionState().selectedMeshes);
-sceneManager.updateDimensionTargets(selectionManager.getSelectionState().selectedMeshes);
+sceneManager.updateDimensionTargets();
 
 sceneManager.setDimensionEnabled(dimensionToggle.checked);
 
 dimensionToggle.addEventListener('change', () => {
   sceneManager.setDimensionEnabled(dimensionToggle.checked);
-  sceneManager.updateDimensionTargets(selectionManager.getSelectionState().selectedMeshes);
+  sceneManager.updateDimensionTargets();
 });
 
 let pointerDownPosition = null;
@@ -76,7 +76,7 @@ toolbar.setActiveMode('none');
 panel.bindImport(async (file) => {
   try {
     await importManager.importModel(file);
-    sceneManager.updateDimensionTargets(selectionManager.getSelectionState().selectedMeshes);
+    sceneManager.updateDimensionTargets();
   } catch (error) {
     console.error('Error importing model', error);
   }
@@ -91,7 +91,7 @@ selectionManager.addEventListener('selectionchange', (event) => {
   transformManager.updateAnchorFromSelection(selectedMeshes);
   inspector.update(selectedMeshes, transformManager.mode);
   materialPanel.update(selectedMeshes);
-  sceneManager.updateDimensionTargets(selectedMeshes);
+  sceneManager.updateDimensionTargets();
 });
 
 transformManager.addEventListener('transformchange', () => {
