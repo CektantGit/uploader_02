@@ -29,6 +29,8 @@ export class Inspector {
     this.mode = 'none';
     /** @type {import('three').Object3D | null} */
     this.activeMesh = null;
+    /** @type {Set<import('three').Object3D>} */
+    this.currentSelection = new Set();
     this.isSyncing = false;
 
     Object.values(this.inputs).forEach((input) => {
@@ -55,12 +57,24 @@ export class Inspector {
    */
   update(selection, mode) {
     this.mode = mode;
+    this.currentSelection = new Set(selection);
+
+    const hasSelection = selection.size > 0;
+    const showForMultiScale = mode === 'scale' && hasSelection;
+
     if (selection.size === 1 && mode !== 'none') {
       this.activeMesh = [...selection][0];
       this.#syncInputs();
       this.root.classList.remove('hidden');
       if (this.resetButton) {
         this.resetButton.disabled = !this.#getInitialTransform(this.activeMesh);
+      }
+    } else if (showForMultiScale) {
+      this.activeMesh = null;
+      this.root.classList.remove('hidden');
+      this.#syncInputs();
+      if (this.resetButton) {
+        this.resetButton.disabled = true;
       }
     } else {
       this.activeMesh = null;
@@ -76,6 +90,19 @@ export class Inspector {
    */
   #syncInputs() {
     if (!this.activeMesh) {
+      if (this.mode === 'scale' && this.currentSelection.size > 0) {
+        this.isSyncing = true;
+        const meshes = [...this.currentSelection];
+        const first = meshes[0];
+        const epsilon = 1e-4;
+        const sameX = meshes.every((mesh) => Math.abs(mesh.scale.x - first.scale.x) < epsilon);
+        const sameY = meshes.every((mesh) => Math.abs(mesh.scale.y - first.scale.y) < epsilon);
+        const sameZ = meshes.every((mesh) => Math.abs(mesh.scale.z - first.scale.z) < epsilon);
+        this.inputs.x.value = sameX ? first.scale.x.toFixed(3) : '';
+        this.inputs.y.value = sameY ? first.scale.y.toFixed(3) : '';
+        this.inputs.z.value = sameZ ? first.scale.z.toFixed(3) : '';
+        this.isSyncing = false;
+      }
       return;
     }
     this.isSyncing = true;
@@ -100,10 +127,20 @@ export class Inspector {
    * Применяет изменения из инпутов к мешу и обновляет TransformControls.
    */
   #commitChanges() {
-    if (!this.activeMesh || this.isSyncing) {
+    if (this.isSyncing) {
       return;
     }
-    const snapshot = this.undoManager?.captureSnapshot([this.activeMesh]);
+    const isMultiScale = this.mode === 'scale' && this.currentSelection.size > 1;
+    if (!this.activeMesh && !isMultiScale) {
+      return;
+    }
+
+    const targets = isMultiScale ? [...this.currentSelection] : this.activeMesh ? [this.activeMesh] : [];
+    if (targets.length === 0) {
+      return;
+    }
+
+    const snapshot = this.undoManager?.captureSnapshot(targets);
     const parse = (value) => {
       const number = Number(value);
       return Number.isFinite(number) ? number : 0;
@@ -112,14 +149,18 @@ export class Inspector {
     const y = parse(this.inputs.y.value);
     const z = parse(this.inputs.z.value);
 
-    if (this.mode === 'translate') {
+    if (this.mode === 'translate' && this.activeMesh) {
       this.activeMesh.position.set(x, y, z);
-    } else if (this.mode === 'rotate') {
+      this.activeMesh.updateMatrixWorld(true);
+    } else if (this.mode === 'rotate' && this.activeMesh) {
       this.activeMesh.rotation.set(MathUtils.degToRad(x), MathUtils.degToRad(y), MathUtils.degToRad(z));
+      this.activeMesh.updateMatrixWorld(true);
     } else if (this.mode === 'scale') {
-      this.activeMesh.scale.set(x, y, z);
+      targets.forEach((mesh) => {
+        mesh.scale.set(x, y, z);
+        mesh.updateMatrixWorld(true);
+      });
     }
-    this.activeMesh.updateMatrixWorld(true);
 
     const { selectedMeshes } = this.selectionManager.getSelectionState();
     this.transformManager.updateAnchorFromSelection(selectedMeshes);
