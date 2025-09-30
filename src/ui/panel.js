@@ -10,8 +10,25 @@ export class Panel {
     this.importButton = /** @type {HTMLButtonElement} */ (root.querySelector('[data-import-button]'));
     this.fileInput = /** @type {HTMLInputElement} */ (root.querySelector('[data-file-input]'));
     this.list = /** @type {HTMLUListElement} */ (root.querySelector('[data-mesh-list]'));
+    this.selectAllButton = /** @type {HTMLButtonElement} */ (root.querySelector('[data-select-all]'));
+    this.tabButtons = /** @type {HTMLButtonElement[]} */ (
+      Array.from(root.querySelectorAll('[data-panel-tab]'))
+    );
+    this.sections = new Map(
+      Array.from(root.querySelectorAll('[data-panel-section]')).map((section) => [
+        section.getAttribute('data-panel-section') || '',
+        section,
+      ]),
+    );
+    const defaultTab = this.tabButtons.find((button) => button.classList.contains('panel__tab--active'));
+    this.activeSection = defaultTab?.getAttribute('data-panel-tab') || 'info';
     /** @type {(file: File) => void} */
     this.onImportFile = () => {};
+    /** @type {() => void} */
+    this.onSelectAll = () => {};
+    this.meshCount = this.list?.children.length ?? 0;
+
+    this.#bindTabs();
 
     if (this.importButton) {
       this.importButton.addEventListener('click', () => {
@@ -20,6 +37,13 @@ export class Panel {
           this.fileInput.click();
         }
       });
+    }
+
+    if (this.selectAllButton) {
+      this.selectAllButton.addEventListener('click', () => {
+        this.onSelectAll();
+      });
+      this.#updateSelectAllState();
     }
 
     if (this.fileInput) {
@@ -34,6 +58,43 @@ export class Panel {
   }
 
   /**
+   * Настраивает переключение вкладок панели.
+   */
+  #bindTabs() {
+    for (const button of this.tabButtons) {
+      button.addEventListener('click', () => {
+        const target = button.getAttribute('data-panel-tab') || '';
+        if (!target) {
+          return;
+        }
+        this.#setActiveSection(target);
+      });
+    }
+    if (this.activeSection) {
+      this.#setActiveSection(this.activeSection);
+    }
+  }
+
+  /**
+   * Переключает текущую видимую секцию панели.
+   * @param {string} sectionName
+   */
+  #setActiveSection(sectionName) {
+    this.activeSection = sectionName;
+    for (const button of this.tabButtons) {
+      const isActive = button.getAttribute('data-panel-tab') === sectionName;
+      button.classList.toggle('panel__tab--active', isActive);
+      button.setAttribute('aria-pressed', String(isActive));
+    }
+    for (const [name, section] of this.sections.entries()) {
+      if (!name) {
+        continue;
+      }
+      section.classList.toggle('panel__section--active', name === sectionName);
+    }
+  }
+
+  /**
    * Привязывает обработчик импорта файла.
    * @param {(file: File) => void} handler
    */
@@ -42,11 +103,25 @@ export class Panel {
   }
 
   /**
+   * Привязывает обработчик массового выбора мешей.
+   * @param {() => void} handler
+   */
+  bindSelectAll(handler) {
+    this.onSelectAll = handler;
+  }
+
+  /**
    * Создаёт DOM-строку для меша.
-   * @param {{ name: string, onClick: (event: MouseEvent) => void, onHide: () => boolean, onDelete: () => void }} config
+   * @param {{
+   *   name: string,
+   *   onClick: (event: MouseEvent) => void,
+   *   onDoubleClick?: (event: MouseEvent) => void,
+   *   onHide: () => boolean,
+   *   onDelete: () => void
+   * }} config
    * @returns {HTMLLIElement}
    */
-  createMeshRow({ name, onClick, onHide, onDelete }) {
+  createMeshRow({ name, onClick, onDoubleClick, onHide, onDelete }) {
     const li = document.createElement('li');
     li.className = 'mesh-row';
 
@@ -74,6 +149,18 @@ export class Panel {
       onClick(event);
     });
 
+    if (onDoubleClick) {
+      li.addEventListener('dblclick', (event) => {
+        if (
+          event.target instanceof HTMLElement &&
+          event.target.closest('.mesh-row__actions')
+        ) {
+          return;
+        }
+        onDoubleClick(event);
+      });
+    }
+
     hideButton.addEventListener('click', (event) => {
       event.stopPropagation();
       const visible = onHide();
@@ -89,6 +176,8 @@ export class Panel {
     actions.append(hideButton, deleteButton);
     li.append(label, actions);
     this.list?.append(li);
+    this.meshCount += 1;
+    this.#updateSelectAllState();
     return li;
   }
 
@@ -99,5 +188,22 @@ export class Panel {
   removeMeshRow(uuid) {
     const row = this.list?.querySelector(`[data-uuid="${uuid}"]`);
     row?.remove();
+    if (this.meshCount > 0) {
+      this.meshCount -= 1;
+    }
+    if (this.meshCount < 0) {
+      this.meshCount = 0;
+    }
+    this.#updateSelectAllState();
+  }
+
+  /**
+   * Обновляет доступность кнопки массового выбора.
+   */
+  #updateSelectAllState() {
+    if (!this.selectAllButton) {
+      return;
+    }
+    this.selectAllButton.disabled = this.meshCount === 0;
   }
 }

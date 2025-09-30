@@ -60,13 +60,7 @@ export class SelectionManager extends EventTarget {
    */
   selectFromScene(object, additive) {
     const mesh = this.findRegisteredMesh(object);
-    if (!mesh) {
-      if (!additive) {
-        this.clearSelection();
-      }
-      return;
-    }
-    this.#selectMesh(mesh, additive);
+    this.selectMeshes(mesh ? [mesh] : [], additive);
   }
 
   /**
@@ -81,24 +75,44 @@ export class SelectionManager extends EventTarget {
   /**
    * Обработка клика по строке списка.
    * @param {string} uuid
-   * @param {boolean} withShift
+   * @param {boolean} withCtrl
    */
-  selectFromList(uuid, withShift) {
-    if (!this.meshMap.has(uuid)) {
+  selectFromList(uuid, withCtrl) {
+    const mesh = this.meshMap.get(uuid)?.mesh ?? null;
+    this.selectMeshes(mesh ? [mesh] : [], withCtrl);
+  }
+
+  /**
+   * Унифицированный обработчик выбора мешей независимо от источника.
+   * @param {import('three').Object3D[]} meshes
+   * @param {boolean} additive
+   */
+  selectMeshes(meshes, additive) {
+    if (meshes.length === 0) {
+      if (!additive) {
+        this.clearSelection();
+      }
       return;
     }
 
-    if (withShift && this.lastSelectedId) {
-      const range = this.#getRangeBetween(this.lastSelectedId, uuid);
-      if (range.length > 0) {
-        this.setSelection(range, true);
-        return;
+    const nextSelection = additive ? new Set(this.selectedMeshes) : new Set();
+    meshes.forEach((mesh) => {
+      if (this.meshMap.has(mesh.uuid)) {
+        nextSelection.add(mesh);
       }
+    });
+
+    if (nextSelection.size === 0) {
+      if (!additive) {
+        this.clearSelection();
+      }
+      return;
     }
 
-    const mesh = this.meshMap.get(uuid)?.mesh ?? null;
-    if (mesh) {
-      this.#selectMesh(mesh, withShift);
+    this.#applySelection(nextSelection);
+    const last = meshes[meshes.length - 1];
+    if (last && this.meshMap.has(last.uuid)) {
+      this.lastSelectedId = last.uuid;
     }
   }
 
@@ -137,6 +151,20 @@ export class SelectionManager extends EventTarget {
   }
 
   /**
+   * Выбирает все зарегистрированные меши.
+   */
+  selectAll() {
+    const meshes = Array.from(this.meshMap.values())
+      .map((record) => record?.mesh)
+      .filter((mesh) => Boolean(mesh));
+    if (meshes.length === 0) {
+      this.clearSelection();
+      return;
+    }
+    this.setSelection(/** @type {import('three').Object3D[]} */ (meshes));
+  }
+
+  /**
    * Удаляет меш из текущего выбора (например, при скрытии или удалении).
    * @param {import('three').Object3D} mesh
    */
@@ -163,14 +191,6 @@ export class SelectionManager extends EventTarget {
    * @param {import('three').Object3D} mesh
    * @param {boolean} additive
    */
-  #selectMesh(mesh, additive) {
-    const nextSelection = additive
-      ? new Set(this.selectedMeshes).add(mesh)
-      : new Set([mesh]);
-    this.#applySelection(nextSelection);
-    this.lastSelectedId = mesh.uuid;
-  }
-
   /**
    * Применяет новый набор выбранных мешей, обновляя визуальное состояние.
    * @param {Set<import('three').Object3D>} newSelection
@@ -205,23 +225,6 @@ export class SelectionManager extends EventTarget {
       current = current.parent;
     }
     return null;
-  }
-
-  /**
-   * Возвращает массив мешей из диапазона Map по двум идентификаторам.
-   * @param {string} startId
-   * @param {string} endId
-   * @returns {import('three').Object3D[]}
-   */
-  #getRangeBetween(startId, endId) {
-    const keys = Array.from(this.meshMap.keys());
-    const startIndex = keys.indexOf(startId);
-    const endIndex = keys.indexOf(endId);
-    if (startIndex === -1 || endIndex === -1) {
-      return [];
-    }
-    const [from, to] = startIndex <= endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
-    return keys.slice(from, to + 1).map((key) => this.meshMap.get(key)?.mesh).filter(Boolean);
   }
 
   /**

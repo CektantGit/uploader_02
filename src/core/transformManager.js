@@ -14,10 +14,12 @@ const MODE_MAP = {
 export class TransformManager extends EventTarget {
   /**
    * @param {import('./sceneManager.js').SceneManager} sceneManager
+   * @param {import('./undoManager.js').UndoManager} undoManager
    */
-  constructor(sceneManager) {
+  constructor(sceneManager, undoManager) {
     super();
     this.sceneManager = sceneManager;
+    this.undoManager = undoManager;
     this.mode = 'none';
     this.anchor = new Object3D();
     this.anchor.name = 'SelectionAnchor';
@@ -36,6 +38,7 @@ export class TransformManager extends EventTarget {
 
     this.isDragging = false;
     this.dragState = null;
+    this.pendingUndoSnapshot = null;
 
     this.transformControls.addEventListener('dragging-changed', (event) => {
       this.isDragging = event.value;
@@ -43,9 +46,16 @@ export class TransformManager extends EventTarget {
         this.sceneManager.controls.enabled = !event.value;
       }
       if (event.value) {
+        if (this.undoManager) {
+          this.pendingUndoSnapshot = this.undoManager.captureSnapshot(this.currentSelection);
+        }
         this.#cacheRelativeStates();
       } else {
         this.dragState = null;
+        if (this.undoManager && this.pendingUndoSnapshot) {
+          this.undoManager.commitSnapshot(this.pendingUndoSnapshot);
+        }
+        this.pendingUndoSnapshot = null;
         this.dispatchEvent(new CustomEvent('transformcommit', { detail: this.getState() }));
       }
       this.dispatchEvent(new CustomEvent('draggingchange', { detail: { dragging: this.isDragging } }));
@@ -75,9 +85,7 @@ export class TransformManager extends EventTarget {
    * @param {'none' | 'translate' | 'rotate' | 'scale'} mode
    */
   setMode(mode) {
-    if (this.mode === mode) {
-      return;
-    }
+    const previousMode = this.mode;
     this.mode = mode;
     if (mode === 'none') {
       this.transformControls.detach();
@@ -87,12 +95,20 @@ export class TransformManager extends EventTarget {
       if (controlsMode) {
         this.transformControls.setMode(controlsMode);
       }
-      this.transformControls.visible = this.currentSelection.size > 0;
-      if (this.currentSelection.size > 0 && this.transformControls.object !== this.anchor) {
+      const hasSelection = this.currentSelection.size > 0;
+      if (hasSelection) {
         this.transformControls.attach(this.anchor);
+      } else {
+        this.transformControls.detach();
       }
+      this.transformControls.visible = hasSelection;
     }
-    this.dispatchEvent(new CustomEvent('modechange', { detail: { mode } }));
+    if (this.currentSelection.size > 0) {
+      this.updateAnchorFromSelection(this.currentSelection);
+    }
+    if (previousMode !== mode) {
+      this.dispatchEvent(new CustomEvent('modechange', { detail: { mode } }));
+    }
   }
 
   /**
@@ -144,9 +160,11 @@ export class TransformManager extends EventTarget {
     }
 
     this.anchor.updateMatrixWorld(true);
-    if (this.mode !== 'none') {
+    const shouldShow = this.mode !== 'none' && this.currentSelection.size > 0;
+    if (shouldShow) {
       this.transformControls.attach(this.anchor);
       this.transformControls.visible = true;
+      this.transformControls.updateMatrixWorld(true);
     } else {
       this.transformControls.detach();
       this.transformControls.visible = false;

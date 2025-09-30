@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -23,17 +23,277 @@
   <body>
     <div id="app">
       <canvas id="scene"></canvas>
-      <aside class="panel" data-panel>
-        <div class="panel__import">
-          <button class="panel__import-button" type="button" data-import-button>Import Model</button>
+      <div class="viewer-controls">
+        <label class="viewer-toggle">
           <input
-            class="hidden-input"
-            type="file"
-            accept=".gltf,.glb,.fbx,.obj"
-            data-file-input
+            type="checkbox"
+            class="viewer-toggle__input"
+            data-dimension-toggle
+            aria-label="Toggle dimension helper"
           />
+          <span class="viewer-toggle__switch" aria-hidden="true">
+            <span class="viewer-toggle__thumb"></span>
+          </span>
+          <span class="viewer-toggle__text">Dimension</span>
+        </label>
+      </div>
+      <aside class="panel panel--left" data-panel>
+        <div class="panel__tabs" role="tablist">
+          <button
+            type="button"
+            class="panel__tab panel__tab--active"
+            data-panel-tab="info"
+            data-i18n-key="tabs.info"
+          >
+            Info
+          </button>
+          <button
+            type="button"
+            class="panel__tab"
+            data-panel-tab="mesh"
+            data-i18n-key="tabs.mesh"
+          >
+            Mesh
+          </button>
         </div>
-        <ul class="panel__list" data-mesh-list></ul>
+        <section
+          class="panel__section panel__section--info panel__section--active"
+          data-panel-section="info"
+        >
+          <div class="info-panel" data-info-panel>
+            <div class="info-panel__group">
+              <label class="info-field">
+                <span class="info-field__label" data-i18n-key="name.label">Name</span>
+                <input
+                  type="text"
+                  class="info-field__input"
+                  data-info-name
+                  data-i18n-placeholder="name.placeholder"
+                />
+              </label>
+            </div>
+            <div class="info-panel__group">
+              <label class="info-field">
+                <span class="info-field__label" data-i18n-key="description.label">Description</span>
+                <textarea
+                  class="info-field__input info-field__input--multiline"
+                  rows="4"
+                  data-info-description
+                  data-i18n-placeholder="description.placeholder"
+                ></textarea>
+              </label>
+            </div>
+            <div class="info-panel__group">
+              <label class="info-field">
+                <span class="info-field__label" data-i18n-key="tags.label">Tags</span>
+                <input
+                  type="text"
+                  class="info-field__input"
+                  data-info-tags
+                  data-i18n-placeholder="tags.placeholder"
+                />
+              </label>
+            </div>
+            <div class="info-panel__group">
+              <div class="info-field">
+                <div class="info-field__header material-section__label">
+                  <label
+                    class="info-field__label"
+                    for="info-placement"
+                    data-i18n-key="placement.label"
+                  >
+                    Placement type
+                  </label>
+                  <button
+                    type="button"
+                    class="material-section__help-button"
+                    aria-label="Placement type description"
+                    data-tooltip-button
+                    data-i18n-tooltip="placement.help"
+                  >
+                    ?
+                  </button>
+                </div>
+                <div class="info-field__select">
+                  <select
+                    id="info-placement"
+                    class="info-field__input info-field__input--select"
+                    data-info-placement
+                  >
+                    <option value="all" data-i18n-key="placement.options.all">All</option>
+                    <option value="floor" data-i18n-key="placement.options.floor">Floor</option>
+                    <option value="wall" data-i18n-key="placement.options.wall">Wall</option>
+                    <option value="ceiling" data-i18n-key="placement.options.ceiling">Ceiling</option>
+                    <option value="carpet" data-i18n-key="placement.options.carpet">Carpet</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="info-panel__group">
+              <div class="info-field">
+                <div class="info-field__header material-section__label">
+                  <label
+                    class="info-field__label"
+                    for="info-destination"
+                    data-i18n-key="destination.label"
+                  >
+                    Destination Url
+                  </label>
+                  <button
+                    type="button"
+                    class="material-section__help-button"
+                    aria-label="Destination url description"
+                    data-tooltip-button
+                    data-i18n-tooltip="destination.help"
+                  >
+                    ?
+                  </button>
+                </div>
+                <input
+                  type="url"
+                  class="info-field__input"
+                  id="info-destination"
+                  placeholder="https://"
+                  data-info-destination
+                  data-i18n-placeholder="destination.placeholder"
+                />
+              </div>
+            </div>
+            <div class="info-panel__group">
+              <label class="info-field">
+                <span class="info-field__label" data-i18n-key="brand.label">Brand</span>
+                <input
+                  type="text"
+                  class="info-field__input"
+                  data-info-brand
+                  data-i18n-placeholder="brand.placeholder"
+                />
+              </label>
+            </div>
+            <div class="info-panel__group">
+              <div class="info-field">
+                <div class="info-field__header material-section__label">
+                  <label
+                    class="info-field__label"
+                    for="info-category"
+                    data-i18n-key="category.label"
+                  >
+                    Category
+                  </label>
+                  <button
+                    type="button"
+                    class="material-section__help-button"
+                    aria-label="Category description"
+                    data-tooltip-button
+                    data-i18n-tooltip="category.help"
+                  >
+                    ?
+                  </button>
+                </div>
+                <div class="info-field__select">
+                  <select
+                    id="info-category"
+                    class="info-field__input info-field__input--select"
+                    data-info-category
+                  >
+                    <option value="" data-i18n-key="category.placeholder">Select category</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="info-panel__group" data-info-subcategory-group>
+              <label class="info-field">
+                <span class="info-field__label" data-i18n-key="subcategory.label">Subcategory</span>
+                <div class="info-field__select">
+                  <select
+                    id="info-subcategory"
+                    class="info-field__input info-field__input--select"
+                    data-info-subcategory
+                  >
+                    <option value="" data-i18n-key="subcategory.placeholder">Select subcategory</option>
+                  </select>
+                </div>
+              </label>
+            </div>
+            <div class="info-panel__group">
+              <div class="info-field">
+                <div class="info-field__header material-section__label">
+                  <label
+                    class="info-field__label"
+                    for="info-visibility"
+                    data-i18n-key="visibility.label"
+                  >
+                    Visibility
+                  </label>
+                  <button
+                    type="button"
+                    class="material-section__help-button"
+                    aria-label="Visibility description"
+                    data-tooltip-button
+                    data-i18n-tooltip="visibility.help"
+                  >
+                    ?
+                  </button>
+                </div>
+                <div class="info-field__select">
+                  <select
+                    id="info-visibility"
+                    class="info-field__input info-field__input--select"
+                    data-info-visibility
+                  >
+                    <option value="visible" data-i18n-key="visibility.options.visible">Visible everywhere</option>
+                    <option value="catalogs" data-i18n-key="visibility.options.catalogs">Only in my catalogs</option>
+                    <option value="hidden" data-i18n-key="visibility.options.hidden">Hidden everywhere</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="info-panel__group">
+              <div class="info-field info-field--stacked">
+                <div class="info-field__label" data-i18n-key="covers.label">Covers</div>
+                <div class="info-panel__covers" data-info-covers>
+                  <label class="texture-upload texture-upload--cover" data-info-cover-target>
+                    <img
+                      class="texture-upload__image"
+                      data-info-cover-image
+                      alt="Cover preview"
+                      width="100"
+                      height="100"
+                    />
+                    <button
+                      type="button"
+                      class="texture-upload__remove"
+                      data-info-cover-remove
+                      aria-label="Remove cover"
+                    >
+                      ×
+                    </button>
+                    <div class="texture-upload__label" data-i18n-key="covers.add">Add Cover</div>
+                    <input class="hidden-input" type="file" accept="image/*" data-info-cover-input />
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="info-panel__group info-panel__group--actions">
+              <button type="button" class="info-panel__delete" data-info-delete>
+                <span data-i18n-key="delete.label">Delete object</span>
+              </button>
+            </div>
+          </div>
+        </section>
+        <section class="panel__section panel__section--mesh" data-panel-section="mesh">
+          <div class="panel__import">
+            <button class="panel__import-button" type="button" data-import-button>Import Model</button>
+            <button class="panel__select-all-button" type="button" data-select-all>Select All Meshes</button>
+            <input
+              class="hidden-input"
+              type="file"
+              accept=".gltf,.glb,.fbx,.obj"
+              data-file-input
+            />
+          </div>
+          <ul class="panel__list" data-mesh-list></ul>
+        </section>
       </aside>
       <div class="toolbar" data-toolbar>
         <button type="button" class="toolbar__button active" data-mode="none">None</button>
@@ -48,7 +308,608 @@
           <input type="number" step="0.01" class="inspector__input" data-axis="y" placeholder="Y" />
           <input type="number" step="0.01" class="inspector__input" data-axis="z" placeholder="Z" />
         </div>
+        <button type="button" class="inspector__reset" data-inspector-reset>Reset Transform</button>
       </div>
+      <aside class="panel panel--right" data-material-panel>
+        <div class="material-panel">
+          <p class="material-panel__title">Material</p>
+          <p class="material-panel__message" data-material-message>Select a single mesh to edit its material.</p>
+          <div class="material-panel__body is-hidden" data-material-body>
+            <details class="material-section" open>
+              <summary class="material-section__summary">
+                <span class="material-section__label">
+                  <span>Color</span>
+                  <button
+                    type="button"
+                    class="material-section__help-button"
+                    aria-label="The Color section lets you apply either a solid base color or a texture map. Only the selected option affects the mesh."
+                    data-section-help
+                    data-tooltip="Choose between a solid base color or a texture map. Only the selected option affects the mesh."
+                  >
+                    ?
+                  </button>
+                </span>
+              </summary>
+              <div class="material-section__content">
+                <div class="material-mode" role="radiogroup">
+                  <label class="material-mode__option">
+                    <input type="radio" name="color-mode" value="color" data-color-mode />
+                    <span>Color</span>
+                  </label>
+                  <label class="material-mode__option">
+                    <input type="radio" name="color-mode" value="texture" data-color-mode />
+                    <span>Texture</span>
+                  </label>
+                </div>
+                <div class="material-color-picker" data-color-picker>
+                  <label class="material-field">
+                    <span class="material-field__preview" data-color-preview aria-hidden="true"></span>
+                    <input
+                      type="color"
+                      class="material-field__input"
+                      data-color-input
+                      aria-label="Base color"
+                    />
+                    <span class="material-field__hover-label" aria-hidden="true">Pick</span>
+                  </label>
+                </div>
+                <div class="material-texture-picker is-hidden" data-color-texture>
+                  <div class="texture-upload" data-color-texture-target>
+                    <img
+                      class="texture-upload__image"
+                      data-color-texture-image
+                      alt="Color texture preview"
+                      width="100"
+                      height="100"
+                    />
+                    <button
+                      type="button"
+                      class="texture-upload__remove"
+                      data-color-texture-remove
+                      aria-label="Remove color texture"
+                    >
+                      ×
+                    </button>
+                    <div class="texture-upload__label">Upload</div>
+                    <input class="hidden-input" type="file" accept="image/*" data-color-texture-input />
+                  </div>
+                </div>
+              </div>
+            </details>
+            <details class="material-section" open>
+              <summary class="material-section__summary">
+                <span class="material-section__label">
+                  <span>Opacity</span>
+                  <button
+                    type="button"
+                    class="material-section__help-button"
+                    aria-label="The Opacity section switches between a scalar slider, a dedicated texture, or the base color's alpha channel to drive transparency."
+                    data-section-help
+                    data-tooltip="Control transparency with a slider, a separate texture, or the base color's alpha channel."
+                  >
+                    ?
+                  </button>
+                </span>
+              </summary>
+              <div class="material-section__content">
+                <div class="material-mode" role="radiogroup">
+                  <label class="material-mode__option">
+                    <input type="radio" name="opacity-mode" value="slider" data-opacity-mode />
+                    <span>Slider</span>
+                  </label>
+                  <label class="material-mode__option">
+                    <input type="radio" name="opacity-mode" value="texture" data-opacity-mode />
+                    <span>Texture</span>
+                  </label>
+                  <label class="material-mode__option">
+                    <input type="radio" name="opacity-mode" value="color-alpha" data-opacity-mode />
+                    <span>Alpha</span>
+                  </label>
+                </div>
+                <div class="material-opacity material-opacity--slider material-control" data-opacity-slider>
+                  <div class="texture-upload texture-upload--readonly" data-opacity-slider-target>
+                    <img
+                      class="texture-upload__image"
+                      data-opacity-slider-image
+                      alt="Opacity value preview"
+                      width="100"
+                      height="100"
+                    />
+                    <div class="texture-upload__label">Value</div>
+                  </div>
+                  <div class="material-slider material-slider--stacked">
+                    <label class="material-slider__label" for="opacity-slider">Opacity</label>
+                    <input
+                      id="opacity-slider"
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value="1"
+                      class="material-slider__input"
+                      data-opacity-slider-input
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value="1.00"
+                      class="material-slider__value"
+                      data-opacity-slider-number
+                      aria-label="Opacity value"
+                    />
+                  </div>
+                </div>
+                <div class="material-opacity material-opacity--texture is-hidden" data-opacity-texture>
+                  <div class="texture-upload" data-opacity-texture-target>
+                    <img
+                      class="texture-upload__image"
+                      data-opacity-texture-image
+                      alt="Opacity texture preview"
+                      width="100"
+                      height="100"
+                    />
+                    <button
+                      type="button"
+                      class="texture-upload__remove"
+                      data-opacity-texture-remove
+                      aria-label="Remove opacity texture"
+                    >
+                      ×
+                    </button>
+                    <div class="texture-upload__label">Upload</div>
+                    <input class="hidden-input" type="file" accept="image/*" data-opacity-texture-input />
+                  </div>
+                </div>
+                <div class="material-opacity material-opacity--color is-hidden" data-opacity-color>
+                  <div class="texture-upload texture-upload--readonly" data-opacity-color-target>
+                    <img
+                      class="texture-upload__image"
+                      data-opacity-color-image
+                      alt="Base color alpha preview"
+                      width="100"
+                      height="100"
+                    />
+                    <div class="texture-upload__label">Alpha</div>
+                  </div>
+                  <p class="material-opacity__note">Uses the base color texture alpha channel.</p>
+                </div>
+              </div>
+            </details>
+            <details class="material-section" open>
+              <summary class="material-section__summary">
+                <span class="material-section__label">
+                  <span>Normal Map</span>
+                  <button
+                    type="button"
+                    class="material-section__help-button"
+                    aria-label="The Normal Map section lets you upload a normal texture and adjust its strength. A neutral normal map is used when none is provided."
+                    data-section-help
+                    data-tooltip="Upload a normal map and adjust its strength. A neutral normal map is used if none is supplied."
+                  >
+                    ?
+                  </button>
+                </span>
+              </summary>
+              <div class="material-section__content">
+                <div class="material-control material-control--normal">
+                  <div class="texture-upload" data-normal-texture-target>
+                    <img
+                      class="texture-upload__image"
+                      data-normal-texture-image
+                      alt="Normal map preview"
+                      width="100"
+                      height="100"
+                    />
+                    <button
+                      type="button"
+                      class="texture-upload__remove"
+                      data-normal-texture-remove
+                      aria-label="Remove normal map"
+                    >
+                      ×
+                    </button>
+                    <div class="texture-upload__label">Upload</div>
+                    <input class="hidden-input" type="file" accept="image/*" data-normal-texture-input />
+                  </div>
+                  <div class="material-slider material-slider--stacked">
+                    <label class="material-slider__label" for="normal-strength-slider">Strength</label>
+                    <input
+                      id="normal-strength-slider"
+                      type="range"
+                      min="0"
+                      max="3"
+                      step="0.05"
+                      value="1"
+                      class="material-slider__input"
+                      data-normal-strength
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="3"
+                      step="0.05"
+                      value="1.00"
+                      class="material-slider__value"
+                      data-normal-strength-number
+                      aria-label="Normal map strength"
+                    />
+                  </div>
+                </div>
+              </div>
+            </details>
+            <details class="material-section" open>
+              <summary class="material-section__summary">
+                <span class="material-section__label">
+                  <span>Occlusion / Metallic / Roughness</span>
+                  <button
+                    type="button"
+                    class="material-section__help-button"
+                    aria-label="The ORM section manages ambient occlusion, metallic, and roughness. Use a packed ORM texture, separate textures per channel, or scalar values."
+                    data-section-help
+                    data-tooltip="Manage occlusion, metallic, and roughness using a packed ORM map, separate textures, or scalar values per channel."
+                  >
+                    ?
+                  </button>
+                </span>
+              </summary>
+              <div class="material-section__content">
+                <div class="material-mode" role="radiogroup">
+                  <label class="material-mode__option">
+                    <input type="radio" name="orm-mode" value="packed" data-orm-mode />
+                    <span>ORM</span>
+                  </label>
+                  <label class="material-mode__option">
+                    <input type="radio" name="orm-mode" value="separate" data-orm-mode />
+                    <span>Separate</span>
+                  </label>
+                  <label class="material-mode__option">
+                    <input type="radio" name="orm-mode" value="scalar" data-orm-mode />
+                    <span>Scalar</span>
+                  </label>
+                </div>
+                <div class="material-orm material-orm--packed" data-orm-packed>
+                  <div class="texture-upload" data-orm-packed-target>
+                    <img
+                      class="texture-upload__image"
+                      data-orm-packed-image
+                      alt="Packed ORM texture preview"
+                      width="100"
+                      height="100"
+                    />
+                    <button
+                      type="button"
+                      class="texture-upload__remove"
+                      data-orm-packed-remove
+                      aria-label="Remove packed ORM texture"
+                    >
+                      ×
+                    </button>
+                    <div class="texture-upload__label">Upload</div>
+                    <input class="hidden-input" type="file" accept="image/*" data-orm-packed-input />
+                  </div>
+                </div>
+                <div class="material-orm material-orm--separate is-hidden" data-orm-separate>
+                  <div class="material-orm__channel" data-orm-channel="ao">
+                    <p class="material-orm__label">Occlusion</p>
+                    <div class="material-control material-control--channel">
+                      <div class="texture-upload" data-orm-ao-target>
+                        <img
+                          class="texture-upload__image"
+                          data-orm-ao-image
+                          alt="Occlusion texture preview"
+                          width="100"
+                          height="100"
+                        />
+                        <button
+                          type="button"
+                          class="texture-upload__remove"
+                          data-orm-ao-remove
+                          aria-label="Remove occlusion texture"
+                        >
+                          ×
+                        </button>
+                        <div class="texture-upload__label">Upload</div>
+                        <input class="hidden-input" type="file" accept="image/*" data-orm-ao-input />
+                      </div>
+                      <div class="material-slider material-slider--stacked is-hidden" data-orm-ao-scalar>
+                        <label class="material-slider__label" for="orm-ao-slider">Intensity</label>
+                        <input
+                          id="orm-ao-slider"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1"
+                          class="material-slider__input"
+                          data-orm-ao-slider
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1.00"
+                          class="material-slider__value"
+                          data-orm-ao-number
+                          aria-label="Occlusion intensity"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="material-orm__channel" data-orm-channel="metalness">
+                    <p class="material-orm__label">Metallic</p>
+                    <div class="material-control material-control--channel">
+                      <div class="texture-upload" data-orm-metalness-target>
+                        <img
+                          class="texture-upload__image"
+                          data-orm-metalness-image
+                          alt="Metallic texture preview"
+                          width="100"
+                          height="100"
+                        />
+                        <button
+                          type="button"
+                          class="texture-upload__remove"
+                          data-orm-metalness-remove
+                          aria-label="Remove metallic texture"
+                        >
+                          ×
+                        </button>
+                        <div class="texture-upload__label">Upload</div>
+                        <input class="hidden-input" type="file" accept="image/*" data-orm-metalness-input />
+                      </div>
+                      <div class="material-slider material-slider--stacked is-hidden" data-orm-metalness-scalar>
+                        <label class="material-slider__label" for="orm-metalness-slider">Metalness</label>
+                        <input
+                          id="orm-metalness-slider"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="0"
+                          class="material-slider__input"
+                          data-orm-metalness-slider
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="0.00"
+                          class="material-slider__value"
+                          data-orm-metalness-number
+                          aria-label="Metalness value"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="material-orm__channel" data-orm-channel="roughness">
+                    <p class="material-orm__label">Roughness</p>
+                    <div class="material-control material-control--channel">
+                      <div class="texture-upload" data-orm-roughness-target>
+                        <img
+                          class="texture-upload__image"
+                          data-orm-roughness-image
+                          alt="Roughness texture preview"
+                          width="100"
+                          height="100"
+                        />
+                        <button
+                          type="button"
+                          class="texture-upload__remove"
+                          data-orm-roughness-remove
+                          aria-label="Remove roughness texture"
+                        >
+                          ×
+                        </button>
+                        <div class="texture-upload__label">Upload</div>
+                        <input class="hidden-input" type="file" accept="image/*" data-orm-roughness-input />
+                      </div>
+                      <div class="material-slider material-slider--stacked is-hidden" data-orm-roughness-scalar>
+                        <label class="material-slider__label" for="orm-roughness-slider">Roughness</label>
+                        <input
+                          id="orm-roughness-slider"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1"
+                          class="material-slider__input"
+                          data-orm-roughness-slider
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1.00"
+                          class="material-slider__value"
+                          data-orm-roughness-number
+                          aria-label="Roughness value"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="material-orm material-orm--scalar is-hidden" data-orm-scalar>
+                  <div class="material-orm__channel" data-orm-scalar-channel="ao">
+                    <p class="material-orm__label">Occlusion</p>
+                    <div class="material-control material-control--scalar" data-orm-scalar-ao-container>
+                      <div class="texture-upload texture-upload--readonly">
+                        <img
+                          class="texture-upload__image"
+                          data-orm-scalar-ao-image
+                          alt="Occlusion value preview"
+                          width="100"
+                          height="100"
+                        />
+                        <div class="texture-upload__label">Value</div>
+                      </div>
+                      <div class="material-slider material-slider--stacked" data-orm-scalar-ao>
+                        <label class="material-slider__label" for="orm-scalar-ao-slider">Intensity</label>
+                        <input
+                          id="orm-scalar-ao-slider"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1"
+                          class="material-slider__input"
+                          data-orm-scalar-ao-slider
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1.00"
+                          class="material-slider__value"
+                          data-orm-scalar-ao-number
+                          aria-label="Occlusion intensity"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="material-orm__channel" data-orm-scalar-channel="metalness">
+                    <p class="material-orm__label">Metallic</p>
+                    <div class="material-control material-control--scalar" data-orm-scalar-metalness-container>
+                      <div class="texture-upload texture-upload--readonly">
+                        <img
+                          class="texture-upload__image"
+                          data-orm-scalar-metalness-image
+                          alt="Metallic value preview"
+                          width="100"
+                          height="100"
+                        />
+                        <div class="texture-upload__label">Value</div>
+                      </div>
+                      <div class="material-slider material-slider--stacked" data-orm-scalar-metalness>
+                        <label class="material-slider__label" for="orm-scalar-metalness-slider">Metalness</label>
+                        <input
+                          id="orm-scalar-metalness-slider"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="0"
+                          class="material-slider__input"
+                          data-orm-scalar-metalness-slider
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="0.00"
+                          class="material-slider__value"
+                          data-orm-scalar-metalness-number
+                          aria-label="Metalness value"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="material-orm__channel" data-orm-scalar-channel="roughness">
+                    <p class="material-orm__label">Roughness</p>
+                    <div class="material-control material-control--scalar" data-orm-scalar-roughness-container>
+                      <div class="texture-upload texture-upload--readonly">
+                        <img
+                          class="texture-upload__image"
+                          data-orm-scalar-roughness-image
+                          alt="Roughness value preview"
+                          width="100"
+                          height="100"
+                        />
+                        <div class="texture-upload__label">Value</div>
+                      </div>
+                      <div class="material-slider material-slider--stacked" data-orm-scalar-roughness>
+                        <label class="material-slider__label" for="orm-scalar-roughness-slider">Roughness</label>
+                        <input
+                          id="orm-scalar-roughness-slider"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1"
+                          class="material-slider__input"
+                          data-orm-scalar-roughness-slider
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value="1.00"
+                          class="material-slider__value"
+                          data-orm-scalar-roughness-number
+                          aria-label="Roughness value"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </details>
+            <details class="material-section" data-baked-section>
+              <summary class="material-section__summary">
+                <span class="material-section__label">
+                  <span>Baked Textures</span>
+                  <button
+                    type="button"
+                    class="material-section__help-button"
+                    aria-label="Baked textures show how the color, normal, and ORM outputs will be exported based on current settings."
+                    data-section-help
+                    data-tooltip="Review the baked color, normal, and ORM textures that will be exported from the current material setup."
+                  >
+                    ?
+                  </button>
+                </span>
+              </summary>
+              <div class="material-section__content">
+                <div class="material-baked">
+                  <div class="material-baked__item">
+                    <p class="material-baked__label">Color</p>
+                    <div class="texture-upload texture-upload--readonly">
+                      <img
+                        class="texture-upload__image"
+                        data-baked-color-image
+                        alt="Baked color preview"
+                        width="100"
+                        height="100"
+                      />
+                    </div>
+                  </div>
+                  <div class="material-baked__item">
+                    <p class="material-baked__label">Normal</p>
+                    <div class="texture-upload texture-upload--readonly">
+                      <img
+                        class="texture-upload__image"
+                        data-baked-normal-image
+                        alt="Baked normal preview"
+                        width="100"
+                        height="100"
+                      />
+                    </div>
+                  </div>
+                  <div class="material-baked__item">
+                    <p class="material-baked__label">ORM</p>
+                    <div class="texture-upload texture-upload--readonly">
+                      <img
+                        class="texture-upload__image"
+                        data-baked-orm-image
+                        alt="Baked ORM preview"
+                        width="100"
+                        height="100"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </aside>
     </div>
     <script type="module" src="./src/main.js"></script>
   </body>
