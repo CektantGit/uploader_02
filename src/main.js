@@ -86,6 +86,26 @@ panel.bindSelectAll(() => {
   selectionManager.selectAll();
 });
 
+panel.bindExport(async () => {
+  try {
+    const blob = await sceneManager.exportGLB();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileName = `scene-export-${timestamp}.glb`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 1000);
+  } catch (error) {
+    console.error('Failed to export scene', error);
+  }
+});
+
 selectionManager.addEventListener('selectionchange', (event) => {
   const { selectedMeshes } = event.detail;
   transformManager.updateAnchorFromSelection(selectedMeshes);

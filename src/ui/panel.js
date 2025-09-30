@@ -11,6 +11,7 @@ export class Panel {
     this.fileInput = /** @type {HTMLInputElement} */ (root.querySelector('[data-file-input]'));
     this.list = /** @type {HTMLUListElement} */ (root.querySelector('[data-mesh-list]'));
     this.selectAllButton = /** @type {HTMLButtonElement} */ (root.querySelector('[data-select-all]'));
+    this.exportButton = /** @type {HTMLButtonElement} */ (root.querySelector('[data-export-button]'));
     this.tabButtons = /** @type {HTMLButtonElement[]} */ (
       Array.from(root.querySelectorAll('[data-panel-tab]'))
     );
@@ -26,6 +27,8 @@ export class Panel {
     this.onImportFile = () => {};
     /** @type {() => void} */
     this.onSelectAll = () => {};
+    /** @type {() => void} */
+    this.onExport = () => {};
     this.meshCount = this.list?.children.length ?? 0;
 
     this.#bindTabs();
@@ -42,6 +45,13 @@ export class Panel {
     if (this.selectAllButton) {
       this.selectAllButton.addEventListener('click', () => {
         this.onSelectAll();
+      });
+      this.#updateSelectAllState();
+    }
+
+    if (this.exportButton) {
+      this.exportButton.addEventListener('click', () => {
+        this.onExport();
       });
       this.#updateSelectAllState();
     }
@@ -108,6 +118,14 @@ export class Panel {
    */
   bindSelectAll(handler) {
     this.onSelectAll = handler;
+  }
+
+  /**
+   * Привязывает обработчик экспорта мешей.
+   * @param {() => void} handler
+   */
+  bindExport(handler) {
+    this.onExport = handler;
   }
 
   /**
@@ -201,9 +219,12 @@ export class Panel {
    * Обновляет доступность кнопки массового выбора.
    */
   #updateSelectAllState() {
-    if (!this.selectAllButton) {
-      return;
+    const isDisabled = this.meshCount === 0;
+    if (this.selectAllButton) {
+      this.selectAllButton.disabled = isDisabled;
     }
-    this.selectAllButton.disabled = this.meshCount === 0;
+    if (this.exportButton) {
+      this.exportButton.disabled = isDisabled;
+    }
   }
 }

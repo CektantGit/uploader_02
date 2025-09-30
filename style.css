@@ -304,6 +304,38 @@ canvas#scene {
   gap: 6px;
 }
 
+.panel__export {
+  margin-top: auto;
+}
+
+.panel__export-button {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 10px 20px rgba(14, 165, 233, 0.25);
+}
+
+.panel__export-button:hover,
+.panel__export-button:focus {
+  background: linear-gradient(135deg, #0284c7 0%, #075985 100%);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.panel__export-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .info-panel {
   display: flex;
   flex-direction: column;

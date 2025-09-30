@@ -22,6 +22,7 @@ import {
 } from 'three';
 import { OrbitControls } from 'OrbitControls';
 import { RGBELoader } from 'RGBELoader';
+import { GLTFExporter } from 'GLTFExporter';
 
 const HDR_URL = 'https://vizbl.com/hdr/neutral.hdr';
 
@@ -227,6 +228,48 @@ export class SceneManager {
       }
       this.#refreshDimensionOverlay();
     }
+  }
+
+  /**
+   * Экспортирует все добавленные меши в единый GLB-файл.
+   * @returns {Promise<Blob>}
+   */
+  async exportGLB() {
+    if (this.meshRegistry.size === 0) {
+      throw new Error('No meshes available for export.');
+    }
+
+    const exporter = new GLTFExporter();
+    const exportRoot = new Group();
+
+    this.meshRegistry.forEach((mesh) => {
+      mesh.updateMatrixWorld(true);
+      exportRoot.add(mesh.clone(true));
+    });
+
+    exportRoot.updateMatrixWorld(true);
+
+    const blob = await new Promise((resolve, reject) => {
+      exporter.parse(
+        exportRoot,
+        (result) => {
+          try {
+            if (result instanceof ArrayBuffer) {
+              resolve(new Blob([result], { type: 'model/gltf-binary' }));
+              return;
+            }
+            const json = typeof result === 'string' ? result : JSON.stringify(result);
+            resolve(new Blob([json], { type: 'model/gltf+json' }));
+          } catch (error) {
+            reject(error);
+          }
+        },
+        (error) => reject(error),
+        { binary: true },
+      );
+    });
+
+    return /** @type {Blob} */ (blob);
   }
 
   /**
